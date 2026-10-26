@@ -1,0 +1,15 @@
+Photo sources (local optimized copies)
+
+hero-thali.jpg
+Unsplash, image from the Thali photo collection:
+https://unsplash.com/s/photos/thali
+
+meal-bowl.jpg
+CR (@cr029), “A plate of seasoned rice with chicken curry”:
+https://unsplash.com/photos/a-plate-of-seasoned-rice-with-chicken-curry-SF5me7Tf0LU
+
+market-produce.jpg
+Kate Asplin (@camerakate), “A variety of vegetables are on display at a market”:
+https://unsplash.com/photos/a-variety-of-vegetables-are-on-display-at-a-market-Kljrykekuwo
+
+All three photos are available under the Unsplash License on their source pages.
