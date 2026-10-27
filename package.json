@@ -7,7 +7,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "test": "vitest run"
   },
   "repository": {
     "type": "git",
@@ -25,13 +26,15 @@
     "motion": "^14.6.0",
     "next": "^16.4.3",
     "react": "^19.3.1",
-    "react-dom": "^19.3.1"
+    "react-dom": "^19.3.1",
+    "recharts": "^3.10.1"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.3.3",
     "eslint": "^9.39.5",
     "eslint-config-next": "^16.4.3",
     "postcss": "^8.5.31",
-    "tailwindcss": "^4.3.3"
+    "tailwindcss": "^4.3.3",
+    "vitest": "^5.0.5"
   }
 }
