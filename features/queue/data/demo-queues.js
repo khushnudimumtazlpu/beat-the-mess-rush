@@ -1,0 +1,32 @@
+export const demoQueues = [
+  {
+    id: "mess-a",
+    name: "Main Mess",
+    location: "Main Campus",
+    peopleWaiting: 32,
+    estimatedWaitMinutes: 8,
+    servingRatePerMinute: 4,
+    status: "high",
+    updatedAtLabel: "Demo snapshot",
+  },
+  {
+    id: "mess-b",
+    name: "North Mess",
+    location: "North Block",
+    peopleWaiting: 12,
+    estimatedWaitMinutes: 3,
+    servingRatePerMinute: 4,
+    status: "moderate",
+    updatedAtLabel: "Demo snapshot",
+  },
+  {
+    id: "mess-c",
+    name: "South Mess",
+    location: "South Block",
+    peopleWaiting: 5,
+    estimatedWaitMinutes: 2,
+    servingRatePerMinute: 4,
+    status: "low",
+    updatedAtLabel: "Demo snapshot",
+  },
+];
