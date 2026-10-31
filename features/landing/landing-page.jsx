@@ -28,6 +28,7 @@ import { Reveal } from "./landing-motion";
 
 const navigation = [
   { label: "Home", href: "/#top", isHome: true },
+  { label: "Kitchen Portal", href: "/kitchen" },
   { label: "Features", href: "#features" },
   { label: "How it works", href: "#how-it-works" },
   { label: "Impact", href: "#impact" },
@@ -81,7 +82,7 @@ const steps = [
 const dataReadiness = [
   { label: "Meal selections", status: "No student records connected", icon: ClipboardList },
   { label: "Queue estimates", status: "Queue module not connected", icon: Clock3 },
-  { label: "Food-waste records", status: "Kitchen module not connected", icon: Leaf },
+  { label: "Food-waste records", status: "Kitchen module active (demo)", icon: Leaf },
 ];
 
 function HeroSection() {
@@ -100,6 +101,9 @@ function HeroSection() {
           <div className="rush-hero__actions">
             <Button href="/student" variant="primary" size="large">
               Open Student Dashboard <ArrowRight size={17} aria-hidden="true" />
+            </Button>
+            <Button href="/kitchen" variant="dark" size="large">
+              Kitchen Portal <ArrowRight size={17} aria-hidden="true" />
             </Button>
             <Button href="/student/meals" variant="hero-outline" size="large">
               Plan a meal <ArrowDown size={16} aria-hidden="true" />
@@ -407,7 +411,8 @@ function SiteFooter() {
             <span className="site-footer__project">P01 · Beat the Mess Rush</span>
           </div>
           <div className="site-footer__links-group"><strong>EXPLORE</strong><Link href="#story">The idea</Link><Link href="#features">What it connects</Link><Link href="#how-it-works">How it works</Link><Link href="#impact">Data &amp; impact</Link></div>
-          <div className="site-footer__links-group"><strong>STUDENT DEMO</strong><Link href="/student">Student Dashboard</Link><Link href="/student/meals">Plan a Meal</Link><Link href="/student/history">Meal History</Link><Link href="#queue-feature">Queue visibility</Link><Link href="#kitchen-feature">Kitchen intelligence</Link><span className="site-footer__planned-link">Privacy · planned</span></div>
+          <div className="site-footer__links-group"><strong>STUDENT DEMO</strong><Link href="/student">Student Dashboard</Link><Link href="/student/meals">Plan a Meal</Link><Link href="/student/history">Meal History</Link><Link href="#queue-feature">Queue visibility</Link><Link href="#kitchen-feature">Kitchen intelligence</Link></div>
+          <div className="site-footer__links-group"><strong>KITCHEN PORTAL</strong><Link href="/kitchen">Kitchen Dashboard</Link><Link href="/kitchen/production">Production Log</Link><Link href="/kitchen/waste">Waste Log</Link><Link href="/kitchen/analytics">Waste Analytics</Link></div>
           <div className="site-footer__note"><span className="site-footer__note-icon"><ShieldCheck size={17} /></span><p>Information will be labelled by source: live, staff-reported, estimated, or demo.</p></div>
         </div>
         <div className="site-footer__bottom"><span>© 2026 RushLess · Campus dining project</span><span>Built around clearer handoffs, not made-up numbers.</span><Link href="#top">Back to top ↑</Link></div>
