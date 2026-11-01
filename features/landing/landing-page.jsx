@@ -31,6 +31,7 @@ const navigation = [
   { label: "Features", href: "#features" },
   { label: "How it works", href: "#how-it-works" },
   { label: "Impact", href: "#impact" },
+  { label: "Queue Management", href: "/queue" },
 ];
 
 const steps = [
