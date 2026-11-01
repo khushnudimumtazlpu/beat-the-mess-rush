@@ -39,16 +39,36 @@ describe("getCrowdLevel", () => {
   });
 });
 
+
 describe("calculateQueueMetrics", () => {
-  it("calculates both metrics from the queue data", () => {
+  it("calculates all queue metrics from queue data", () => {
     expect(
       calculateQueueMetrics({
         peopleWaiting: 12,
         servingRatePerMinute: 4,
       })
     ).toEqual({
+      peopleWaiting: 12,
       estimatedWaitMinutes: 3,
-      status: "moderate",
+      crowdLevel: "moderate",
+      status: "busy",
+      isOpen: true,
+    });
+  });
+
+  it("returns closed status when queue is unavailable", () => {
+    expect(
+      calculateQueueMetrics({
+        peopleWaiting: 12,
+        servingRatePerMinute: 4,
+        isOpen: false,
+      })
+    ).toEqual({
+      peopleWaiting: 12,
+      estimatedWaitMinutes: 3,
+      crowdLevel: "moderate",
+      status: "closed",
+      isOpen: false,
     });
   });
 });

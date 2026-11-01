@@ -83,7 +83,7 @@ const totalPeopleWaiting = queues.reduce(
   0
 );
 
-  const status = statusDetails[selectedQueue.status];
+  // const status = statusDetails[selectedQueue.status];
 
   
 function handleQueueUpdate(event) {
@@ -231,7 +231,8 @@ function handleQueueUpdate(event) {
 
             <div className="space-y-3">
               {queues.map((queue) => {
-                const queueStatus = statusDetails[queue.status];
+                // const queueStatus = statusDetails[queue.status];
+                const queueStatus = statusDetails[queue.crowdLevel];
                 const isSelected = queue.id === selectedId;
 
                 return (
