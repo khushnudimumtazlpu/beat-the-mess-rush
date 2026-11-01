@@ -7,6 +7,7 @@ const studentNav = [
   { label: "Student Dashboard", href: "/student" },
   { label: "Plan a Meal", href: "/student/meals" },
   { label: "Meal History", href: "/student/history" },
+  { label: "Kitchen Portal", href: "/kitchen" },
 ];
 
 export function StudentShell({ children }) {
