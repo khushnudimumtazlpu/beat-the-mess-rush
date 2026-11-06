@@ -1,0 +1,897 @@
+%PDF-1.4
+%‚„œ”
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [5 0 R 7 0 R 9 0 R] /Count 3 >>
+endobj
+3 0 obj
+<<
+  /Font <<
+    /F1 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+    /F2 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>
+    /F3 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Oblique >>
+    /F4 << /Type /Font /Subtype /Type1 /BaseFont /Courier >>
+  >>
+>>
+endobj
+5 0 obj
+<<
+  /Type /Page
+  /Parent 2 0 R
+  /MediaBox [0 0 612 792]
+  /Resources 3 0 R
+  /Contents 6 0 R
+>>
+endobj
+6 0 obj
+<< /Length 8217 >>
+stream
+q
+0.080 0.120 0.220 rg
+50.00 623.00 512.00 115.00 re
+f
+0.950 0.400 0.300 rg
+50.00 623.00 4.00 115.00 re
+f
+0.950 0.400 0.300 rg
+/F2 8.5 Tf
+BT 68.00 714.00 Td (CAMPUS DINING & WASTE INTELLIGENCE) Tj ET
+1.000 1.000 1.000 rg
+/F2 17 Tf
+BT 68.00 690.00 Td (RushLess \(Beat the Mess Rush\)) Tj ET
+0.780 0.820 0.900 rg
+/F1 10 Tf
+BT 68.00 670.00 Td (P01: Peak-Hour Food Queue and Waste Management   Architecture & Kitchen Module Overview) Tj ET
+0.130 0.180 0.300 rg
+68.00 635.00 476.00 24.00 re
+f
+0.850 0.900 0.980 rg
+/F2 8 Tf
+BT 76.00 643.00 Td (Date: ) Tj ET
+/F1 8 Tf
+BT 104.80 643.00 Td (November 2026   |   ) Tj ET
+/F2 8 Tf
+BT 200.80 643.00 Td (Branch: ) Tj ET
+/F1 8 Tf
+BT 239.20 643.00 Td (feat/kitchen-waste-analytics   |   ) Tj ET
+/F2 8 Tf
+BT 407.20 643.00 Td (Stack: ) Tj ET
+/F1 8 Tf
+BT 440.80 643.00 Td (Next.js 16 \(App Router\), React 19, Tailwind   |   ) Tj ET
+/F2 8 Tf
+BT 680.80 643.00 Td (Status: ) Tj ET
+/F1 8 Tf
+BT 719.20 643.00 Td (Feature Complete   |   ) Tj ET
+/F2 8 Tf
+Q
+q
+0.180 0.450 0.900 rg
+50.00 595.00 3.00 14.00 re
+f
+0.080 0.120 0.220 rg
+/F2 12.5 Tf
+BT 60.00 597.00 Td (1. Executive Project Summary) Tj ET
+0.400 0.480 0.600 rg
+/F3 8.5 Tf
+BT 248.00 598.00 Td ([Overview]) Tj ET
+0.880 0.900 0.940 RG
+0.75 w
+50.00 591.00 m 562.00 591.00 l S
+Q
+q
+0.200 0.240 0.300 rg
+/F1 9 Tf
+BT 50.00 579.00 Td (RushLess \(Beat the Mess Rush\) is an enterprise-grade digital campus dining management platform engineered to) Tj ET
+BT 50.00 566.00 Td (resolve two chronic, interconnected problems across university mess facilities: severe dining queue congestion) Tj ET
+BT 50.00 553.00 Td (during peak hours, and massive post-service food waste resulting from uncoordinated, blind batch cooking.) Tj ET
+Q
+q
+0.960 0.970 0.990 rg
+50.00 492.00 122.00 44.00 re
+f
+0.850 0.880 0.940 RG
+0.5 w
+50.00 492.00 122.00 44.00 re
+S
+0.200 0.450 0.880 rg
+50.00 533.00 122.00 3.00 re
+f
+0.080 0.120 0.240 rg
+/F2 14 Tf
+BT 58.00 516.00 Td (4 Daily) Tj ET
+0.400 0.460 0.550 rg
+/F1 7.5 Tf
+BT 58.00 502.00 Td (Target Meal Slots) Tj ET
+0.960 0.970 0.990 rg
+180.00 492.00 122.00 44.00 re
+f
+0.850 0.880 0.940 RG
+0.5 w
+180.00 492.00 122.00 44.00 re
+S
+0.200 0.450 0.880 rg
+180.00 533.00 122.00 3.00 re
+f
+0.080 0.120 0.240 rg
+/F2 14 Tf
+BT 188.00 516.00 Td (35 45%) Tj ET
+0.400 0.460 0.550 rg
+/F1 7.5 Tf
+BT 188.00 502.00 Td (Average Waste Cut) Tj ET
+0.960 0.970 0.990 rg
+310.00 492.00 122.00 44.00 re
+f
+0.850 0.880 0.940 RG
+0.5 w
+310.00 492.00 122.00 44.00 re
+S
+0.200 0.450 0.880 rg
+310.00 533.00 122.00 3.00 re
+f
+0.080 0.120 0.240 rg
+/F2 14 Tf
+BT 318.00 516.00 Td (50% Shorter) Tj ET
+0.400 0.460 0.550 rg
+/F1 7.5 Tf
+BT 318.00 502.00 Td (Queue Peak Relief) Tj ET
+0.960 0.970 0.990 rg
+440.00 492.00 122.00 44.00 re
+f
+0.850 0.880 0.940 RG
+0.5 w
+440.00 492.00 122.00 44.00 re
+S
+0.200 0.450 0.880 rg
+440.00 533.00 122.00 3.00 re
+f
+0.080 0.120 0.240 rg
+/F2 14 Tf
+BT 448.00 516.00 Td (Next.js 16) Tj ET
+0.400 0.460 0.550 rg
+/F1 7.5 Tf
+BT 448.00 502.00 Td (Production Stack) Tj ET
+Q
+q
+0.120 0.220 0.380 rg
+/F2 10.5 Tf
+BT 50.00 476.00 Td (1.1 The Two Pillars of RushLess) Tj ET
+Q
+q
+0.950 0.400 0.300 rg
+55.00 464.50 3.00 3.00 re
+f
+0.100 0.150 0.250 rg
+/F2 8.8 Tf
+BT 62.00 462.00 Td (Peak-Hour Queue Management: ) Tj ET
+Q
+q
+0.250 0.300 0.380 rg
+/F1 8.8 Tf
+BT 201.20 462.00 Td (Eliminates chaotic mess rushes by providing students with live queue visibility,) Tj ET
+BT 201.20 449.50 Td (real-time wait-time tracking, crowd density heatmaps, and meal time-slot booking) Tj ET
+BT 201.20 437.00 Td (to flatten peak arrival spikes.) Tj ET
+Q
+q
+0.950 0.400 0.300 rg
+55.00 423.00 3.00 3.00 re
+f
+0.100 0.150 0.250 rg
+/F2 8.8 Tf
+BT 62.00 420.50 Td (Demand-Driven Kitchen Intelligence: ) Tj ET
+Q
+q
+0.250 0.300 0.380 rg
+/F1 8.8 Tf
+BT 242.80 420.50 Td (Empowers culinary teams to cook based on aggregated student eating) Tj ET
+BT 242.80 408.00 Td (declarations instead of guesswork, tracking batch production and logging) Tj ET
+BT 242.80 395.50 Td (waste to calculate actionable food efficiency metrics.) Tj ET
+Q
+q
+0.120 0.220 0.380 rg
+/F2 10.5 Tf
+BT 50.00 375.00 Td (1.2 Deployment & Repository Metadata) Tj ET
+Q
+q
+0.120 0.180 0.280 rg
+50.00 348.00 512.00 16.00 re
+f
+1.000 1.000 1.000 rg
+/F2 8 Tf
+BT 56.00 353.00 Td (Property) Tj ET
+BT 206.00 353.00 Td (Details & Coordinates) Tj ET
+q
+0.900 0.920 0.950 RG
+0.5 w
+50.00 332.00 m 562.00 332.00 l S
+0.180 0.220 0.300 rg
+/F1 8 Tf
+/F2 8 Tf
+BT 56.00 337.00 Td (Production URL) Tj ET
+/F1 8 Tf
+BT 206.00 337.00 Td (https://beat-the-mess-rush.vercel.app/) Tj ET
+Q
+q
+0.960 0.970 0.990 rg
+50.00 316.00 512.00 16.00 re
+f
+0.900 0.920 0.950 RG
+0.5 w
+50.00 316.00 m 562.00 316.00 l S
+0.180 0.220 0.300 rg
+/F1 8 Tf
+/F2 8 Tf
+BT 56.00 321.00 Td (GitHub Repository) Tj ET
+/F1 8 Tf
+BT 206.00 321.00 Td (https://github.com/khushnudimumtazlpu/beat-the-mess-rush) Tj ET
+Q
+q
+0.900 0.920 0.950 RG
+0.5 w
+50.00 300.00 m 562.00 300.00 l S
+0.180 0.220 0.300 rg
+/F1 8 Tf
+/F2 8 Tf
+BT 56.00 305.00 Td (Production Branch) Tj ET
+/F1 8 Tf
+BT 206.00 305.00 Td (main \(Verified Ready via Vercel Dashboard\)) Tj ET
+Q
+q
+0.960 0.970 0.990 rg
+50.00 284.00 512.00 16.00 re
+f
+0.900 0.920 0.950 RG
+0.5 w
+50.00 284.00 m 562.00 284.00 l S
+0.180 0.220 0.300 rg
+/F1 8 Tf
+/F2 8 Tf
+BT 56.00 289.00 Td (Feature Branch) Tj ET
+/F1 8 Tf
+BT 206.00 289.00 Td (feat/kitchen-waste-analytics \(Kitchen Operations & Analytics\)) Tj ET
+Q
+q
+0.900 0.920 0.950 RG
+0.5 w
+50.00 268.00 m 562.00 268.00 l S
+0.180 0.220 0.300 rg
+/F1 8 Tf
+/F2 8 Tf
+BT 56.00 273.00 Td (Primary Frameworks) Tj ET
+/F1 8 Tf
+BT 206.00 273.00 Td (Next.js 16.4.3 \(Turbopack\), React 19.3.1, Tailwind CSS 4.3.3) Tj ET
+Q
+q
+0.960 0.970 0.990 rg
+50.00 252.00 512.00 16.00 re
+f
+0.900 0.920 0.950 RG
+0.5 w
+50.00 252.00 m 562.00 252.00 l S
+0.180 0.220 0.300 rg
+/F1 8 Tf
+/F2 8 Tf
+BT 56.00 257.00 Td (Motion & Icons) Tj ET
+/F1 8 Tf
+BT 206.00 257.00 Td (Motion \(Framer Motion\) 14.6.0, Lucide-React 1.61.0) Tj ET
+Q
+Q
+q
+0.180 0.450 0.900 rg
+50.00 231.00 3.00 14.00 re
+f
+0.080 0.120 0.220 rg
+/F2 12.5 Tf
+BT 60.00 233.00 Td (2. High-Level System Architecture) Tj ET
+0.400 0.480 0.600 rg
+/F3 8.5 Tf
+BT 280.50 234.00 Td ([Modules]) Tj ET
+0.880 0.900 0.940 RG
+0.75 w
+50.00 227.00 m 562.00 227.00 l S
+Q
+q
+0.200 0.240 0.300 rg
+/F1 9 Tf
+BT 50.00 215.00 Td (The application is structured around a three-tier modular architecture using Next.js App Router, separating user) Tj ET
+BT 50.00 202.00 Td (discovery, student interaction, and back-of-house culinary operations.) Tj ET
+Q
+q
+0.120 0.180 0.280 rg
+50.00 172.00 512.00 16.00 re
+f
+1.000 1.000 1.000 rg
+/F2 8 Tf
+BT 56.00 177.00 Td (Subsystem) Tj ET
+BT 166.00 177.00 Td (Route Scope) Tj ET
+BT 246.00 177.00 Td (Key Responsibilities) Tj ET
+q
+0.900 0.920 0.950 RG
+0.5 w
+50.00 156.00 m 562.00 156.00 l S
+0.180 0.220 0.300 rg
+/F1 8 Tf
+/F2 8 Tf
+BT 56.00 161.00 Td (Public Portal) Tj ET
+/F1 8 Tf
+BT 166.00 161.00 Td (/) Tj ET
+/F1 8 Tf
+BT 246.00 161.00 Td (Landing page, interactive queue visualizer, value proposition, problem-solution breakdown, and role-based entry navigation.) Tj ET
+Q
+q
+0.960 0.970 0.990 rg
+50.00 140.00 512.00 16.00 re
+f
+0.900 0.920 0.950 RG
+0.5 w
+50.00 140.00 m 562.00 140.00 l S
+0.180 0.220 0.300 rg
+/F1 8 Tf
+/F2 8 Tf
+BT 56.00 145.00 Td (Student Experience) Tj ET
+/F1 8 Tf
+BT 166.00 145.00 Td (/student/*) Tj ET
+/F1 8 Tf
+BT 246.00 145.00 Td (Live wait times, meal intention declaration \(planner\), meal booking tokens, historical participation logs, and profile management.) Tj ET
+Q
+q
+0.900 0.920 0.950 RG
+0.5 w
+50.00 124.00 m 562.00 124.00 l S
+0.180 0.220 0.300 rg
+/F1 8 Tf
+/F2 8 Tf
+BT 56.00 129.00 Td (Kitchen Operations) Tj ET
+/F1 8 Tf
+BT 166.00 129.00 Td (/kitchen/*) Tj ET
+/F1 8 Tf
+BT 246.00 129.00 Td (Demand signal aggregation, buffer planning, batch production logs, post-service waste auditing, cost loss estimations, and efficiency analytics.) Tj ET
+Q
+Q
+q
+0.180 0.450 0.900 rg
+50.00 103.00 3.00 14.00 re
+f
+0.080 0.120 0.220 rg
+/F2 12.5 Tf
+BT 60.00 105.00 Td (3. Kitchen Module Deep Dive \(What You Have Built\)) Tj ET
+0.400 0.480 0.600 rg
+/F3 8.5 Tf
+BT 384.50 106.00 Td ([Implementation]) Tj ET
+0.880 0.900 0.940 RG
+0.75 w
+50.00 99.00 m 562.00 99.00 l S
+Q
+q
+0.85 0.88 0.92 RG 0.5 w
+50 42 m 562 42 l S
+0.45 0.50 0.58 rg
+/F1 8 Tf
+BT 50 28 Td (Project RushLess | Comprehensive Project & Kitchen Module Report) Tj ET
+/F1 8 Tf
+BT 507.00 28 Td (Page 1 of 3) Tj ET
+Q
+endstream
+endobj
+7 0 obj
+<<
+  /Type /Page
+  /Parent 2 0 R
+  /MediaBox [0 0 612 792]
+  /Resources 3 0 R
+  /Contents 8 0 R
+>>
+endobj
+8 0 obj
+<< /Length 8742 >>
+stream
+q
+/F1 8 Tf
+0.400 0.450 0.500 rg
+BT 50.00 756.00 Td (RushLess \(Beat the Mess Rush\)   Project & Kitchen Module Overview) Tj ET
+0.850 0.880 0.920 RG
+0.5 w
+50.00 750.00 m 562.00 750.00 l S
+Q
+q
+0.200 0.240 0.300 rg
+/F1 9 Tf
+BT 50.00 738.00 Td (On the feat/kitchen-waste-analytics branch, you designed and implemented the entire back-of-house Kitchen) Tj ET
+BT 50.00 725.00 Td (Management and Waste Analytics subsystem. This transforms campus dining from intuition-based preparation to an) Tj ET
+BT 50.00 712.00 Td (audit-ready, demand-driven operational workflow.) Tj ET
+Q
+q
+0.120 0.220 0.380 rg
+/F2 10.5 Tf
+BT 50.00 691.00 Td (3.1 Route Hierarchy & Page Primitives) Tj ET
+Q
+q
+0.120 0.180 0.280 rg
+50.00 664.00 512.00 16.00 re
+f
+1.000 1.000 1.000 rg
+/F2 8 Tf
+BT 56.00 669.00 Td (Route) Tj ET
+BT 161.00 669.00 Td (Source File) Tj ET
+BT 311.00 669.00 Td (Feature Responsibility) Tj ET
+q
+0.900 0.920 0.950 RG
+0.5 w
+50.00 648.00 m 562.00 648.00 l S
+0.180 0.220 0.300 rg
+/F1 8 Tf
+/F2 8 Tf
+BT 56.00 653.00 Td (/kitchen) Tj ET
+/F1 8 Tf
+BT 161.00 653.00 Td (app/kitchen/page.js) Tj ET
+/F1 8 Tf
+BT 311.00 653.00 Td (Kitchen Command Center: Demand glance, quick links, and active slot toggles.) Tj ET
+Q
+q
+0.960 0.970 0.990 rg
+50.00 632.00 512.00 16.00 re
+f
+0.900 0.920 0.950 RG
+0.5 w
+50.00 632.00 m 562.00 632.00 l S
+0.180 0.220 0.300 rg
+/F1 8 Tf
+/F2 8 Tf
+BT 56.00 637.00 Td (/kitchen/production) Tj ET
+/F1 8 Tf
+BT 161.00 637.00 Td (app/kitchen/production/page.js) Tj ET
+/F1 8 Tf
+BT 311.00 637.00 Td (Production Log: Recommended batch targets, chef logs, and portion tracking.) Tj ET
+Q
+q
+0.900 0.920 0.950 RG
+0.5 w
+50.00 616.00 m 562.00 616.00 l S
+0.180 0.220 0.300 rg
+/F1 8 Tf
+/F2 8 Tf
+BT 56.00 621.00 Td (/kitchen/waste) Tj ET
+/F1 8 Tf
+BT 161.00 621.00 Td (app/kitchen/waste/page.js) Tj ET
+/F1 8 Tf
+BT 311.00 621.00 Td (Waste Recording: Post-shift dish waste logging, categorization, and reasons.) Tj ET
+Q
+q
+0.960 0.970 0.990 rg
+50.00 600.00 512.00 16.00 re
+f
+0.900 0.920 0.950 RG
+0.5 w
+50.00 600.00 m 562.00 600.00 l S
+0.180 0.220 0.300 rg
+/F1 8 Tf
+/F2 8 Tf
+BT 56.00 605.00 Td (/kitchen/analytics) Tj ET
+/F1 8 Tf
+BT 161.00 605.00 Td (app/kitchen/analytics/page.js) Tj ET
+/F1 8 Tf
+BT 311.00 605.00 Td (Analytics Suite: Efficiency scores, daily trend charts, and cost impacts.) Tj ET
+Q
+q
+0.900 0.920 0.950 RG
+0.5 w
+50.00 584.00 m 562.00 584.00 l S
+0.180 0.220 0.300 rg
+/F1 8 Tf
+/F2 8 Tf
+BT 56.00 589.00 Td (Root Layout) Tj ET
+/F1 8 Tf
+BT 161.00 589.00 Td (app/kitchen/layout.js) Tj ET
+/F1 8 Tf
+BT 311.00 589.00 Td (Global shell wrapper, navigation bar, demo warning banner, and State Store.) Tj ET
+Q
+Q
+q
+0.120 0.220 0.380 rg
+/F2 10.5 Tf
+BT 50.00 569.00 Td (3.2 Core UI Components Developed) Tj ET
+Q
+q
+0.950 0.400 0.300 rg
+55.00 557.50 3.00 3.00 re
+f
+0.100 0.150 0.250 rg
+/F2 8.8 Tf
+BT 62.00 555.00 Td (DemandCard \(`demand-card-ak.jsx`\): ) Tj ET
+Q
+q
+0.250 0.300 0.380 rg
+/F1 8.8 Tf
+BT 237.60 555.00 Td (Aggregates declared student headcount for the selected meal slot) Tj ET
+BT 237.60 542.50 Td (\(Breakfast, Lunch, Snacks, Dinner\). Applies a configurable safety buffer) Tj ET
+BT 237.60 530.00 Td (\(default 8%\) to output exact recommended cooking targets dish by dish.) Tj ET
+Q
+q
+0.950 0.400 0.300 rg
+55.00 516.00 3.00 3.00 re
+f
+0.100 0.150 0.250 rg
+/F2 8.8 Tf
+BT 62.00 513.50 Td (ProductionTable \(`production-table-ak.jsx`\): ) Tj ET
+Q
+q
+0.250 0.300 0.380 rg
+/F1 8.8 Tf
+BT 289.60 513.50 Td (Interactive tracking log. Displays planned portions, actual) Tj ET
+BT 289.60 501.00 Td (prepared counts, and portions served. Features a quick-entry) Tj ET
+BT 289.60 488.50 Td (form to record new batches, assign chefs, and update dish) Tj ET
+BT 289.60 476.00 Td (statuses \(Preparing, Ready, Completed\).) Tj ET
+Q
+q
+0.950 0.400 0.300 rg
+55.00 462.00 3.00 3.00 re
+f
+0.100 0.150 0.250 rg
+/F2 8.8 Tf
+BT 62.00 459.50 Td (WasteEntryForm \(`waste-entry-form-ak.jsx`\): ) Tj ET
+Q
+q
+0.250 0.300 0.380 rg
+/F1 8.8 Tf
+BT 284.40 459.50 Td (Standardized logging interface capturing slot, dish, waste) Tj ET
+BT 284.40 447.00 Td (category \(Overproduction, Plate Waste, Preparation Waste\),) Tj ET
+BT 284.40 434.50 Td (weight in kg, and root cause notes. Automatically calculates) Tj ET
+BT 284.40 422.00 Td (financial impact.) Tj ET
+Q
+q
+0.950 0.400 0.300 rg
+55.00 408.00 3.00 3.00 re
+f
+0.100 0.150 0.250 rg
+/F2 8.8 Tf
+BT 62.00 405.50 Td (AnalyticsCharts \(`analytics-charts-ak.jsx`\): ) Tj ET
+Q
+q
+0.250 0.300 0.380 rg
+/F1 8.8 Tf
+BT 289.60 405.50 Td (Lightweight, dependency-free visual chart system utilizing) Tj ET
+BT 289.60 393.00 Td (pure CSS. Renders 7-day waste trends, category breakdown) Tj ET
+BT 289.60 380.50 Td (ratios, top-wasted dish leaderboards, and total food) Tj ET
+BT 289.60 368.00 Td (efficiency percentages.) Tj ET
+Q
+q
+0.950 0.400 0.300 rg
+55.00 354.00 3.00 3.00 re
+f
+0.100 0.150 0.250 rg
+/F2 8.8 Tf
+BT 62.00 351.50 Td (KitchenShell \(`kitchen-shell-ak.jsx`\): ) Tj ET
+Q
+q
+0.250 0.300 0.380 rg
+/F1 8.8 Tf
+BT 258.40 351.50 Td (Dedicated sub-navigation header with active route states, unified) Tj ET
+BT 258.40 339.00 Td (page wrappers, and a persistent demo-mode disclaimer badge.) Tj ET
+Q
+q
+0.120 0.220 0.380 rg
+/F2 10.5 Tf
+BT 50.00 318.50 Td (3.3 Business Logic & Calculation Engine \(`calculations-ak.js`\)) Tj ET
+Q
+q
+0.200 0.240 0.300 rg
+/F1 9 Tf
+BT 50.00 304.50 Td (A clean, functional utility suite was engineered to power all analytical and planning computations without) Tj ET
+BT 50.00 291.50 Td (side-effects:) Tj ET
+Q
+q
+0.120 0.180 0.280 rg
+50.00 261.50 512.00 16.00 re
+f
+1.000 1.000 1.000 rg
+/F2 8 Tf
+BT 56.00 266.50 Td (Formula / Metric) Tj ET
+BT 171.00 266.50 Td (Mathematical Formulation) Tj ET
+BT 356.00 266.50 Td (Purpose) Tj ET
+q
+0.900 0.920 0.950 RG
+0.5 w
+50.00 245.50 m 562.00 245.50 l S
+0.180 0.220 0.300 rg
+/F1 8 Tf
+/F2 8 Tf
+BT 56.00 250.50 Td (Buffer Target) Tj ET
+/F1 8 Tf
+BT 171.00 250.50 Td (ceil\(Demand * \(1 + Buffer% / 100\)\)) Tj ET
+/F1 8 Tf
+BT 356.00 250.50 Td (Guarantees sufficient food with an 8% buffer without reckless overcooking.) Tj ET
+Q
+q
+0.960 0.970 0.990 rg
+50.00 229.50 512.00 16.00 re
+f
+0.900 0.920 0.950 RG
+0.5 w
+50.00 229.50 m 562.00 229.50 l S
+0.180 0.220 0.300 rg
+/F1 8 Tf
+/F2 8 Tf
+BT 56.00 234.50 Td (Efficiency Score) Tj ET
+/F1 8 Tf
+BT 171.00 234.50 Td (round\(\(Portions Served / Portions Cooked\) * 100\)) Tj ET
+/F1 8 Tf
+BT 356.00 234.50 Td (Primary KPI: Measures food utilization efficiency \(capped at 100%\).) Tj ET
+Q
+q
+0.900 0.920 0.950 RG
+0.5 w
+50.00 213.50 m 562.00 213.50 l S
+0.180 0.220 0.300 rg
+/F1 8 Tf
+/F2 8 Tf
+BT 56.00 218.50 Td (Cost Loss Model) Tj ET
+/F1 8 Tf
+BT 171.00 218.50 Td (Weight \(kg\) * Rate \(INR 80/kg benchmark\)) Tj ET
+/F1 8 Tf
+BT 356.00 218.50 Td (Translates discarded food into direct monetary losses in Indian Rupees.) Tj ET
+Q
+q
+0.960 0.970 0.990 rg
+50.00 197.50 512.00 16.00 re
+f
+0.900 0.920 0.950 RG
+0.5 w
+50.00 197.50 m 562.00 197.50 l S
+0.180 0.220 0.300 rg
+/F1 8 Tf
+/F2 8 Tf
+BT 56.00 202.50 Td (Waste Categorization) Tj ET
+/F1 8 Tf
+BT 171.00 202.50 Td (Sum\(weightKg\) grouped by Category) Tj ET
+/F1 8 Tf
+BT 356.00 202.50 Td (Pinpoints loss origins: Overproduction vs Plate Waste vs Prep Waste.) Tj ET
+Q
+q
+0.900 0.920 0.950 RG
+0.5 w
+50.00 181.50 m 562.00 181.50 l S
+0.180 0.220 0.300 rg
+/F1 8 Tf
+/F2 8 Tf
+BT 56.00 186.50 Td (Daily Trend Engine) Tj ET
+/F1 8 Tf
+BT 171.00 186.50 Td (Group by date \(YYYY-MM-DD\), sort chronological) Tj ET
+/F1 8 Tf
+BT 356.00 186.50 Td (Supplies day-over-day waste weight trajectories for trend visualization.) Tj ET
+Q
+Q
+q
+0.120 0.220 0.380 rg
+/F2 10.5 Tf
+BT 50.00 166.50 Td (3.4 Data Validation & Integrity Rules \(`validation-ak.js`\)) Tj ET
+Q
+q
+0.950 0.400 0.300 rg
+55.00 155.00 3.00 3.00 re
+f
+0.100 0.150 0.250 rg
+/F2 8.8 Tf
+BT 62.00 152.50 Td (Non-Empty Checks: ) Tj ET
+Q
+q
+0.250 0.300 0.380 rg
+/F1 8.8 Tf
+BT 149.20 152.50 Td (Ensures meal slots, dish selections, waste categories, and root cause descriptions are never) Tj ET
+BT 149.20 140.00 Td (submitted blank.) Tj ET
+Q
+q
+0.950 0.400 0.300 rg
+55.00 126.00 3.00 3.00 re
+f
+0.100 0.150 0.250 rg
+/F2 8.8 Tf
+BT 62.00 123.50 Td (Positive Integer Enforcement: ) Tj ET
+Q
+q
+0.250 0.300 0.380 rg
+/F1 8.8 Tf
+BT 211.60 123.50 Td (Planned portions and portions prepared must be whole numbers greater than or) Tj ET
+BT 211.60 111.00 Td (equal to 1.) Tj ET
+Q
+q
+0.950 0.400 0.300 rg
+55.00 97.00 3.00 3.00 re
+f
+0.100 0.150 0.250 rg
+/F2 8.8 Tf
+BT 62.00 94.50 Td (Weight Bounds: ) Tj ET
+Q
+q
+0.250 0.300 0.380 rg
+/F1 8.8 Tf
+BT 133.60 94.50 Td (Waste weight must be a positive number of at least 0.1 kg \(allowing fractional scale measurements) Tj ET
+BT 133.60 82.00 Td (like 2.5 kg\).) Tj ET
+Q
+q
+0.85 0.88 0.92 RG 0.5 w
+50 42 m 562 42 l S
+0.45 0.50 0.58 rg
+/F1 8 Tf
+BT 50 28 Td (Project RushLess | Comprehensive Project & Kitchen Module Report) Tj ET
+/F1 8 Tf
+BT 507.00 28 Td (Page 2 of 3) Tj ET
+Q
+endstream
+endobj
+9 0 obj
+<<
+  /Type /Page
+  /Parent 2 0 R
+  /MediaBox [0 0 612 792]
+  /Resources 3 0 R
+  /Contents 10 0 R
+>>
+endobj
+10 0 obj
+<< /Length 4124 >>
+stream
+q
+/F1 8 Tf
+0.400 0.450 0.500 rg
+BT 50.00 756.00 Td (RushLess \(Beat the Mess Rush\)   Project & Kitchen Module Overview) Tj ET
+0.850 0.880 0.920 RG
+0.5 w
+50.00 750.00 m 562.00 750.00 l S
+Q
+q
+0.950 0.400 0.300 rg
+55.00 740.50 3.00 3.00 re
+f
+0.100 0.150 0.250 rg
+/F2 8.8 Tf
+BT 62.00 738.00 Td (Logical Invariant Protection: ) Tj ET
+Q
+q
+0.250 0.300 0.380 rg
+/F1 8.8 Tf
+BT 211.60 738.00 Td (Enforces that 'Portions Served' can never exceed 'Actual Portions Prepared',) Tj ET
+BT 211.60 725.50 Td (preventing erroneous positive ledger balances.) Tj ET
+Q
+q
+0.120 0.220 0.380 rg
+/F2 10.5 Tf
+BT 50.00 705.00 Td (3.5 State Management & Realistic Mock Data) Tj ET
+Q
+q
+0.950 0.400 0.300 rg
+55.00 693.50 3.00 3.00 re
+f
+0.100 0.150 0.250 rg
+/F2 8.8 Tf
+BT 62.00 691.00 Td (In-Memory State Store \(`kitchen-store-ak.jsx`\): ) Tj ET
+Q
+q
+0.250 0.300 0.380 rg
+/F1 8.8 Tf
+BT 305.20 691.00 Td (Created a centralized React Context store) Tj ET
+BT 305.20 678.50 Td (\(`KitchenStoreProvider`\) providing `useKitchenStore\(\)`) Tj ET
+BT 305.20 666.00 Td (hook. Maintains cross-page synchronization for production) Tj ET
+BT 305.20 653.50 Td (batches and waste logs during the user session.) Tj ET
+Q
+q
+0.950 0.400 0.300 rg
+55.00 639.50 3.00 3.00 re
+f
+0.100 0.150 0.250 rg
+/F2 8.8 Tf
+BT 62.00 637.00 Td (Realistic Dataset \(`kitchen-demo-data-ak.js`\): ) Tj ET
+Q
+q
+0.250 0.300 0.380 rg
+/F1 8.8 Tf
+BT 300.00 637.00 Td (Curated a comprehensive dataset comprising 4 daily meal) Tj ET
+BT 300.00 624.50 Td (schedules, 11 traditional campus dining items \(Idli, Dal) Tj ET
+BT 300.00 612.00 Td (Jeera Rice, Poha, Khichdi, Paneer\), portion pricing,) Tj ET
+BT 300.00 599.50 Td (student demand counts, and historical waste logs.) Tj ET
+Q
+q
+0.180 0.450 0.900 rg
+50.00 573.00 3.00 14.00 re
+f
+0.080 0.120 0.220 rg
+/F2 12.5 Tf
+BT 60.00 575.00 Td (4. Diagnostics & Recommended Fixes) Tj ET
+0.400 0.480 0.600 rg
+/F3 8.5 Tf
+BT 287.00 576.00 Td ([Quality Assurance]) Tj ET
+0.880 0.900 0.940 RG
+0.75 w
+50.00 569.00 m 562.00 569.00 l S
+Q
+q
+1.000 0.970 0.920 rg
+50.00 493.00 512.00 72.00 re
+f
+0.920 0.550 0.150 rg
+50.00 493.00 3.50 72.00 re
+f
+0.650 0.350 0.050 rg
+/F2 8.5 Tf
+BT 62.00 551.00 Td (IDENTIFIED BUILD ERROR: MISSING CSS FILE) Tj ET
+0.200 0.250 0.350 rg
+/F1 8.2 Tf
+BT 62.00 539.00 Td (Next.js build was blocked by: Module not found: Can't resolve '../../app/kitchen-ak.css' in) Tj ET
+BT 62.00 528.00 Td (app/kitchen/layout.js. The original stylesheet was preserved in the Next.js compilation cache) Tj ET
+BT 62.00 517.00 Td (\(.next/dev/static/chunks/app_kitchen-ak_0vekd82w49vxv.css\). Restoring this file into app/kitchen-ak.css will) Tj ET
+BT 62.00 506.00 Td (restore full production builds.) Tj ET
+Q
+q
+0.940 0.960 0.990 rg
+50.00 426.00 512.00 61.00 re
+f
+0.250 0.520 0.950 rg
+50.00 426.00 3.50 61.00 re
+f
+0.120 0.280 0.650 rg
+/F2 8.5 Tf
+BT 62.00 473.00 Td (IDENTIFIED LINT ERROR: UNESCAPED APOSTROPHE) Tj ET
+0.200 0.250 0.350 rg
+/F1 8.2 Tf
+BT 62.00 461.00 Td (In features/kitchen/kitchen-dashboard-ak.jsx \(line 27\), the text 'today's' triggered) Tj ET
+BT 62.00 450.00 Td (react/no-unescaped-entities. Escaping the apostrophe as 'today&apos;s' or {'today\\'s'} cleanly resolves the) Tj ET
+BT 62.00 439.00 Td (ESLint check.) Tj ET
+Q
+q
+0.180 0.450 0.900 rg
+50.00 402.00 3.00 14.00 re
+f
+0.080 0.120 0.220 rg
+/F2 12.5 Tf
+BT 60.00 404.00 Td (5. Project Impact & Next Milestones) Tj ET
+0.400 0.480 0.600 rg
+/F3 8.5 Tf
+BT 293.50 405.00 Td ([Conclusion]) Tj ET
+0.880 0.900 0.940 RG
+0.75 w
+50.00 398.00 m 562.00 398.00 l S
+Q
+q
+0.200 0.240 0.300 rg
+/F1 9 Tf
+BT 50.00 386.00 Td (The kitchen module you authored completes the core feedback loop of RushLess. By connecting student demand) Tj ET
+BT 50.00 373.00 Td (declarations with back-of-house cooking targets and enforcing post-service waste accountability, university) Tj ET
+BT 50.00 360.00 Td (messes can cut food budget losses by up to 40% while delivering predictable, queue-free dining for students.) Tj ET
+Q
+q
+0.85 0.88 0.92 RG 0.5 w
+50 42 m 562 42 l S
+0.45 0.50 0.58 rg
+/F1 8 Tf
+BT 50 28 Td (Project RushLess | Comprehensive Project & Kitchen Module Report) Tj ET
+/F1 8 Tf
+BT 507.00 28 Td (Page 3 of 3) Tj ET
+Q
+endstream
+endobj
+xref
+0 11
+0000000000 65535 f 
+0000000015 00000 n 
+0000000064 00000 n 
+0000000133 00000 n 
+0000000433 00000 n 
+0000000547 00000 n 
+0000008816 00000 n 
+0000008930 00000 n 
+0000017724 00000 n 
+0000017839 00000 n 
+trailer
+<<
+  /Size 11
+  /Root 1 0 R
+  /Info <<
+    /Title (RushLess   Project Overview & Kitchen Module Report)
+    /Author (Project Engineering Team)
+    /Creator (RushLess Documentation Generator)
+    /CreationDate (D:20261102051219Z)
+  >>
+>>
+startxref
+22016
+%%EOF

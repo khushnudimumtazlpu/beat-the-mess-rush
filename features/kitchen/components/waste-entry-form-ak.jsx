@@ -1,11 +1,11 @@
 "use client";
 
-// ─── Waste Entry Form (ak) ────────────────────────────────────────────────────
-// Lets kitchen staff log food waste after a service shift.
+// ─── Waste Entry Form (ak & _akk) ─────────────────────────────────────────────
+// Lets kitchen staff log food waste after a service shift directly to the database.
 // Fields: meal slot, dish name, category, weight (kg), reason.
 
 import { useState } from "react";
-import { Leaf, Check } from "lucide-react";
+import { Leaf, Check, AlertCircle, RefreshCw } from "lucide-react";
 import { useKitchenStore } from "../services/kitchen-store-ak";
 import { validateWaste } from "../utils/validation-ak";
 import { kitchenSlots, wasteCategories } from "../data/kitchen-demo-data-ak";
@@ -18,14 +18,16 @@ const blankForm = {
   reason: "",
 };
 
-// Rough cost estimate: ₹80 per kg (illustrative average across all dishes)
+// Benchmark cost estimate: ₹80 per kg (industry average across campus dining)
 const COST_PER_KG = 80;
 
 export function WasteEntryForm() {
-  const { wasteRecords, addWasteRecord } = useKitchenStore();
+  const { wasteRecords, addWasteRecord, refreshAll, loading } = useKitchenStore();
   const [form, setForm] = useState(blankForm);
   const [errors, setErrors] = useState({});
   const [saved, setSaved] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [serverError, setServerError] = useState("");
 
   const today = new Date().toISOString().split("T")[0];
   const todayRecords = wasteRecords.filter((r) => r.date === today);
@@ -33,38 +35,52 @@ export function WasteEntryForm() {
   function handleChange(field, value) {
     setForm((f) => ({ ...f, [field]: value }));
     setErrors((e) => ({ ...e, [field]: undefined }));
+    setServerError("");
   }
 
   // When slot changes, clear dishName so user picks a relevant dish
   function handleSlotChange(slotId) {
     setForm((f) => ({ ...f, slotId, dishName: "" }));
     setErrors((e) => ({ ...e, slotId: undefined, dishName: undefined }));
+    setServerError("");
   }
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault();
     const errs = validateWaste(form);
-    if (Object.keys(errs).length) { setErrors(errs); return; }
+    if (Object.keys(errs).length) {
+      setErrors(errs);
+      return;
+    }
 
-    const kg = Number(form.weightKg);
-    const portionsLost = Math.round(kg * 3); // rough estimate: ~3 portions per kg
-    const costInr = Math.round(kg * COST_PER_KG);
+    setSubmitting(true);
+    setServerError("");
 
-    addWasteRecord({
-      date: today,
-      slotId: form.slotId,
-      dishName: form.dishName,
-      category: form.category,
-      weightKg: kg,
-      portionsLost,
-      costInr,
-      reason: form.reason,
-    });
+    try {
+      const kg = Number(form.weightKg);
+      const portionsLost = Math.round(kg * 3); // standard portion calculation
+      const costInr = Math.round(kg * COST_PER_KG);
 
-    setForm(blankForm);
-    setErrors({});
-    setSaved(true);
-    setTimeout(() => setSaved(false), 3000);
+      await addWasteRecord({
+        date: today,
+        slotId: form.slotId,
+        dishName: form.dishName,
+        category: form.category,
+        weightKg: kg,
+        portionsLost,
+        costInr,
+        reason: form.reason,
+      });
+
+      setForm(blankForm);
+      setErrors({});
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    } catch (err) {
+      setServerError(err.message || "Failed to log waste record.");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   const selectedSlot = kitchenSlots.find((s) => s.id === form.slotId);
@@ -78,11 +94,26 @@ export function WasteEntryForm() {
           </span>
           <h2 className="kitchen-panel-title">Record Food Waste</h2>
         </div>
+        <button
+          className="kitchen-btn kitchen-btn--ghost"
+          type="button"
+          onClick={() => refreshAll()}
+          title="Refresh records"
+          aria-label="Refresh records"
+        >
+          <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
+        </button>
       </div>
 
       {saved && (
         <div className="kitchen-success-banner" role="status">
-          <Check size={14} aria-hidden="true" /> Waste record saved successfully.
+          <Check size={14} aria-hidden="true" /> Waste record saved to database successfully.
+        </div>
+      )}
+
+      {serverError && (
+        <div className="kitchen-error-banner" role="alert" style={{ marginBlock: "0.75rem", padding: "0.5rem 0.75rem", background: "rgba(255,128,102,0.15)", borderRadius: "8px", color: "#b04533", fontSize: "0.85rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+          <AlertCircle size={15} /> {serverError}
         </div>
       )}
 
@@ -168,7 +199,7 @@ export function WasteEntryForm() {
 
           {/* Reason */}
           <div className="kitchen-field kitchen-field--full">
-            <label className="kitchen-field-label">Reason / Notes <span>Required</span></label>
+            <label className="kitchen-field-label">Reason / Root Cause <span>Required</span></label>
             <textarea
               className={`kitchen-field-control kitchen-field-control--textarea ${errors.reason ? "kitchen-field-control--error" : ""}`}
               rows={3}
@@ -181,10 +212,19 @@ export function WasteEntryForm() {
         </div>
 
         <div className="kitchen-form-actions">
-          <button className="kitchen-btn kitchen-btn--primary" type="submit">
-            Save Waste Record
+          <button className="kitchen-btn kitchen-btn--primary" type="submit" disabled={submitting}>
+            {submitting ? "Saving to Database…" : "Save Waste Record"}
           </button>
-          <button className="kitchen-btn kitchen-btn--ghost" type="button" onClick={() => { setForm(blankForm); setErrors({}); }}>
+          <button
+            className="kitchen-btn kitchen-btn--ghost"
+            type="button"
+            onClick={() => {
+              setForm(blankForm);
+              setErrors({});
+              setServerError("");
+            }}
+            disabled={submitting}
+          >
             Clear
           </button>
         </div>
@@ -193,11 +233,15 @@ export function WasteEntryForm() {
       {/* Today's waste log */}
       {todayRecords.length > 0 && (
         <div className="kitchen-waste-recent">
-          <p className="kitchen-overline" style={{ marginBottom: "0.75rem" }}>Logged Today</p>
+          <p className="kitchen-overline" style={{ marginBottom: "0.75rem" }}>
+            Logged Today ({todayRecords.length} records in Database)
+          </p>
           {todayRecords.map((r) => (
             <div key={r.id} className="kitchen-waste-row">
               <span className="kitchen-waste-row__dish">{r.dishName}</span>
-              <span className={`kitchen-category-chip kitchen-category-chip--${r.category.replace(" ", "-").toLowerCase()}`}>{r.category}</span>
+              <span className={`kitchen-category-chip kitchen-category-chip--${(r.category || "").replace(" ", "-").toLowerCase()}`}>
+                {r.category}
+              </span>
               <span className="kitchen-waste-row__weight">{r.weightKg} kg</span>
               <span className="kitchen-waste-row__cost">₹{r.costInr}</span>
             </div>
