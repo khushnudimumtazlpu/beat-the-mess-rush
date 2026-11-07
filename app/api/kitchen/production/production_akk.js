@@ -11,15 +11,15 @@ export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
     const requestedHostelId = searchParams.get("hostelId");
+    const requestedMessId = searchParams.get("messId");
     const slotId = searchParams.get("slotId");
     const date = searchParams.get("date");
-    const messId = searchParams.get("messId");
 
-    const auth = await authorizeKitchenRequest(requestedHostelId);
+    const auth = await authorizeKitchenRequest(requestedHostelId, requestedMessId);
 
     const records = await getProductionRecords({
       hostelId: auth.hostelId,
-      messId: messId || auth.messId,
+      messId: auth.messId,
       date,
       slotId,
     });
@@ -29,6 +29,7 @@ export async function GET(request) {
       data: records,
       meta: {
         hostelId: auth.hostelId,
+        messId: auth.messId,
         count: records.length,
       },
     });
@@ -60,11 +61,11 @@ export async function POST(request) {
       );
     }
 
-    const auth = await authorizeKitchenRequest(body.hostelId);
+    const auth = await authorizeKitchenRequest(body.hostelId, body.messId);
 
     const created = await createProductionRecord({
       hostelId: auth.hostelId,
-      messId: body.messId || auth.messId,
+      messId: auth.messId,
       date: body.date,
       slotId: body.slotId,
       dishId: body.dishId,
@@ -101,7 +102,7 @@ export async function POST(request) {
 export async function PATCH(request) {
   try {
     const body = await request.json();
-    const { id, portionsServed, status, chef, hostelId } = body;
+    const { id, portionsServed, status, chef, hostelId, messId } = body;
 
     if (!id) {
       return NextResponse.json(
@@ -110,10 +111,11 @@ export async function PATCH(request) {
       );
     }
 
-    const auth = await authorizeKitchenRequest(hostelId);
+    const auth = await authorizeKitchenRequest(hostelId, messId);
 
     const updated = await updateProductionRecord(id, {
       hostelId: auth.hostelId,
+      messId: auth.messId,
       portionsServed,
       status,
       chef,

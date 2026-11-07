@@ -367,6 +367,7 @@ describe("Kitchen Module: Database Persistence & Multi-Tenant Isolation", () => 
   it("generates comprehensive kitchen analytics from real database records", async () => {
     await createProductionRecord({
       hostelId: "hostel-alpha",
+      messId: "mess-alpha",
       slotId: "lunch",
       dishId: "dal",
       actualPrepared: 200,
@@ -375,6 +376,7 @@ describe("Kitchen Module: Database Persistence & Multi-Tenant Isolation", () => 
 
     await createWasteRecord({
       hostelId: "hostel-alpha",
+      messId: "mess-alpha",
       slotId: "lunch",
       dishName: "Dal",
       category: "Overproduction",
@@ -382,7 +384,7 @@ describe("Kitchen Module: Database Persistence & Multi-Tenant Isolation", () => 
       reason: "Surplus",
     });
 
-    const analytics = await getKitchenAnalytics({ hostelId: "hostel-alpha" });
+    const analytics = await getKitchenAnalytics({ hostelId: "hostel-alpha", messId: "mess-alpha" });
     expect(analytics.totalCooked).toBe(200);
     expect(analytics.totalServed).toBe(180);
     expect(analytics.efficiencyScore).toBe(90);
@@ -395,6 +397,7 @@ describe("Kitchen Module: Database Persistence & Multi-Tenant Isolation", () => 
   it("provides meal demand planning signals with safety buffer", async () => {
     const demand = await getDemandData({
       hostelId: "hostel-alpha",
+      messId: "mess-alpha",
       slotId: "lunch",
     });
 
@@ -403,6 +406,24 @@ describe("Kitchen Module: Database Persistence & Multi-Tenant Isolation", () => 
     expect(demand.bufferPct).toBe(8);
     expect(demand.recommendedTarget).toBe(withBuffer(demand.totalStudentIntent, 8));
   });
+
+  it("enforces demand isolation between different messes in the same hostel", async () => {
+    const demandMessA = await getDemandData({
+      hostelId: "hostel-alpha",
+      messId: "mess-A",
+      slotId: "lunch",
+    });
+
+    const demandMessB = await getDemandData({
+      hostelId: "hostel-alpha",
+      messId: "mess-B",
+      slotId: "lunch",
+    });
+
+    expect(demandMessA.messId).toBe("mess-A");
+    expect(demandMessB.messId).toBe("mess-B");
+    expect(demandMessA.id).not.toBe(demandMessB.id);
+  });
 });
 
 describe("Kitchen Module: Role-Based Authorization & Tenant Isolation", () => {
@@ -410,19 +431,37 @@ describe("Kitchen Module: Role-Based Authorization & Tenant Isolation", () => {
     vi.clearAllMocks();
   });
 
-  it("allows active MESS_ADMIN to access their assigned hostel", async () => {
+  it("allows active MESS_ADMIN to access their assigned hostel and mess", async () => {
     getSessionMock.mockResolvedValue({
       user: {
         id: "admin-1",
         role: USER_ROLE.MESS_ADMIN,
         status: ACCOUNT_STATUS.ACTIVE,
         hostelId: "hostel-101",
+        messId: "mess-101",
       },
     });
 
     const auth = await authorizeKitchenRequest();
     expect(auth.hostelId).toBe("hostel-101");
+    expect(auth.messId).toBe("mess-101");
     expect(auth.user.role).toBe(USER_ROLE.MESS_ADMIN);
+  });
+
+  it("prevents MESS_ADMIN from accessing or overriding to a different mess", async () => {
+    getSessionMock.mockResolvedValue({
+      user: {
+        id: "admin-1",
+        role: USER_ROLE.MESS_ADMIN,
+        status: ACCOUNT_STATUS.ACTIVE,
+        hostelId: "hostel-101",
+        messId: "mess-101",
+      },
+    });
+
+    await expect(
+      authorizeKitchenRequest("hostel-101", "mess-999")
+    ).rejects.toThrow("You do not have access to this mess's kitchen records.");
   });
 
   it("prevents MESS_ADMIN from accessing a different hostel", async () => {
@@ -440,18 +479,43 @@ describe("Kitchen Module: Role-Based Authorization & Tenant Isolation", () => {
     );
   });
 
-  it("allows active SUPER_ADMIN to query any hostel", async () => {
+  it("allows active SUPER_ADMIN to query any hostel and mess", async () => {
     getSessionMock.mockResolvedValue({
       user: {
         id: "super-1",
         role: USER_ROLE.SUPER_ADMIN,
         status: ACCOUNT_STATUS.ACTIVE,
         hostelId: "hostel-main",
+        messId: "mess-main",
       },
     });
 
-    const auth = await authorizeKitchenRequest("hostel-any-block");
+    const auth = await authorizeKitchenRequest("hostel-any-block", "mess-any-block");
     expect(auth.hostelId).toBe("hostel-any-block");
+    expect(auth.messId).toBe("mess-any-block");
+  });
+
+  it("prevents SUPER_ADMIN from selecting a mess that belongs to another hostel", async () => {
+    getSessionMock.mockResolvedValue({
+      user: {
+        id: "super-1",
+        role: USER_ROLE.SUPER_ADMIN,
+        status: ACCOUNT_STATUS.ACTIVE,
+        hostelId: "hostel-1",
+        messId: "mess-1",
+      },
+    });
+
+    const mockDb = {
+      collection: () => ({
+        findOne: async () => ({ _id: "mess-other", hostelId: "hostel-other" }),
+      }),
+    };
+    getMongoDbMock.mockResolvedValue(mockDb);
+
+    await expect(
+      authorizeKitchenRequest("hostel-1", "mess-other")
+    ).rejects.toThrow("The specified mess does not belong to the selected hostel.");
   });
 
   it("rejects unauthenticated requests", async () => {

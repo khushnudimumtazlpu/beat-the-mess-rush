@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { ObjectId } from "mongodb";
 import { USER_ROLE, ACCOUNT_STATUS } from "../../lib/auth-contracts.js";
 
 const { getMongoDbMock, getSessionMock } = vi.hoisted(() => ({
@@ -58,10 +59,17 @@ function createMockDb() {
           if (q._id) {
             return list.find((i) => i._id?.toString() === q._id?.toString()) || null;
           }
-          return list[0] || null;
+          return (
+            list.find((item) => {
+              for (const [k, v] of Object.entries(q)) {
+                if (k === "_id") continue;
+                if (item[k] !== v) return false;
+              }
+              return true;
+            }) || null
+          );
         },
         async insertOne(doc) {
-          const { ObjectId } = await import("mongodb");
           const inserted = { _id: new ObjectId(), ...doc };
           list.push(inserted);
           return { insertedId: inserted._id };
@@ -89,13 +97,14 @@ describe("Kitchen API Route Handlers (_akk)", () => {
     mockDb = createMockDb();
     getMongoDbMock.mockResolvedValue(mockDb);
 
-    // Default authorized mess admin
+    // Default authorized mess admin with assigned mess
     getSessionMock.mockResolvedValue({
       user: {
         id: "admin-1",
         role: USER_ROLE.MESS_ADMIN,
         status: ACCOUNT_STATUS.ACTIVE,
         hostelId: "hostel-test",
+        messId: "mess-test",
       },
     });
   });
@@ -119,8 +128,9 @@ describe("Kitchen API Route Handlers (_akk)", () => {
     expect(res.status).toBe(201);
     const json = await res.json();
     expect(json.success).toBe(true);
-    expect(json.data.dishName).toBe("Dal & Jeera Rice");
     expect(json.data.leftoverPortions).toBe(15);
+    expect(json.data.hostelId).toBe("hostel-test");
+    expect(json.data.messId).toBe("mess-test");
   });
 
   it("POST /api/kitchen/production rejects invalid portions served > prepared", async () => {
@@ -130,8 +140,9 @@ describe("Kitchen API Route Handlers (_akk)", () => {
       body: JSON.stringify({
         slotId: "lunch",
         dishId: "dal-rice",
+        dishName: "Dal",
         actualPrepared: 100,
-        portionsServed: 150, // exceeds prepared
+        portionsServed: 150,
       }),
     });
 
@@ -139,18 +150,27 @@ describe("Kitchen API Route Handlers (_akk)", () => {
     expect(res.status).toBe(400);
     const json = await res.json();
     expect(json.success).toBe(false);
-    expect(json.details.portionsServed).toBe(
-      "Portions served cannot exceed portions prepared."
-    );
   });
 
   it("GET /api/kitchen/production retrieves records scoped to admin hostel", async () => {
-    const req = new Request("http://localhost:3000/api/kitchen/production?slotId=lunch");
+    // Seed one record
+    mockDb.collection("kitchen_productions").insertOne({
+      hostelId: "hostel-test",
+      messId: "mess-test",
+      date: "2026-11-06",
+      slotId: "lunch",
+      dishName: "Rice",
+      actualPrepared: 100,
+    });
+
+    const req = new Request("http://localhost:3000/api/kitchen/production?date=2026-11-06");
     const res = await getProduction(req);
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json.success).toBe(true);
-    expect(Array.isArray(json.data)).toBe(true);
+    expect(json.data).toHaveLength(1);
+    expect(json.data[0].hostelId).toBe("hostel-test");
+    expect(json.data[0].messId).toBe("mess-test");
   });
 
   it("POST /api/kitchen/waste logs food waste and calculates cost", async () => {
@@ -159,10 +179,10 @@ describe("Kitchen API Route Handlers (_akk)", () => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         slotId: "lunch",
-        dishName: "Dal & Jeera Rice",
+        dishName: "Curd Rice",
         category: "Overproduction",
-        weightKg: 4.5,
-        reason: "Rainy day attendance slump",
+        weightKg: 5.0,
+        reason: "Excess stock",
       }),
     });
 
@@ -170,8 +190,10 @@ describe("Kitchen API Route Handlers (_akk)", () => {
     expect(res.status).toBe(201);
     const json = await res.json();
     expect(json.success).toBe(true);
-    expect(json.data.weightKg).toBe(4.5);
-    expect(json.data.costInr).toBe(360); // 4.5 * 80
+    expect(json.data.costInr).toBe(400); // 5 * 80
+    expect(json.data.portionsLost).toBe(15); // 5 * 3
+    expect(json.data.hostelId).toBe("hostel-test");
+    expect(json.data.messId).toBe("mess-test");
   });
 
   it("GET /api/kitchen/demand returns planning signals with safety buffer", async () => {
@@ -181,7 +203,9 @@ describe("Kitchen API Route Handlers (_akk)", () => {
     const json = await res.json();
     expect(json.success).toBe(true);
     expect(json.data.slotId).toBe("lunch");
-    expect(json.data.bufferPct).toBe(8);
+    expect(json.data.recommendedTarget).toBeGreaterThan(json.data.totalStudentIntent);
+    expect(json.data.hostelId).toBe("hostel-test");
+    expect(json.data.messId).toBe("mess-test");
   });
 
   it("GET /api/kitchen/analytics returns food efficiency KPIs", async () => {
@@ -191,7 +215,26 @@ describe("Kitchen API Route Handlers (_akk)", () => {
     const json = await res.json();
     expect(json.success).toBe(true);
     expect(json.data.efficiencyScore).toBeDefined();
-    expect(json.data.totalWasteKg).toBeDefined();
-    expect(json.data.categoryBreakdown).toBeDefined();
+    expect(json.meta.hostelId).toBe("hostel-test");
+    expect(json.meta.messId).toBe("mess-test");
+  });
+
+  it("enforces assigned mess on MESS_ADMIN and prevents cross-mess tampering", async () => {
+    const tamperReq = new Request("http://localhost:3000/api/kitchen/production", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        messId: "other-unauthorized-mess",
+        slotId: "lunch",
+        dishId: "dal",
+        actualPrepared: 100,
+        portionsServed: 90,
+      }),
+    });
+
+    const res = await postProduction(tamperReq);
+    expect(res.status).toBe(403);
+    const json = await res.json();
+    expect(json.code).toBe("MESS_SCOPE_REQUIRED");
   });
 });

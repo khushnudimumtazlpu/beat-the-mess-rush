@@ -6,15 +6,15 @@ export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
     const requestedHostelId = searchParams.get("hostelId");
-    const messId = searchParams.get("messId");
+    const requestedMessId = searchParams.get("messId");
     const startDate = searchParams.get("startDate");
     const endDate = searchParams.get("endDate");
 
-    const auth = await authorizeKitchenRequest(requestedHostelId);
+    const auth = await authorizeKitchenRequest(requestedHostelId, requestedMessId);
 
     const analytics = await getKitchenAnalytics({
       hostelId: auth.hostelId,
-      messId: messId || auth.messId,
+      messId: auth.messId,
       startDate,
       endDate,
     });
@@ -24,6 +24,7 @@ export async function GET(request) {
       data: analytics,
       meta: {
         hostelId: auth.hostelId,
+        messId: auth.messId,
       },
     });
   } catch (error) {

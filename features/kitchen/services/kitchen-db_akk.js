@@ -145,6 +145,9 @@ export async function createProductionRecord({
   const db = await getMongoDb();
   await ensureKitchenIndexes(db);
 
+  if (!hostelId) throw new Error("Hostel ID is required.");
+  if (!messId) throw new Error("Mess ID is required.");
+
   const now = new Date();
   const prep = Number(actualPrepared) || 0;
   const served = Number(portionsServed) || 0;
@@ -155,7 +158,7 @@ export async function createProductionRecord({
 
   const record = {
     hostelId: isValidObjectIdHex(hostelId) ? toObjectId(hostelId, "Hostel ID") : String(hostelId),
-    messId: isValidObjectIdHex(messId) ? toObjectId(messId, "Mess ID") : String(messId || "default-mess"),
+    messId: isValidObjectIdHex(messId) ? toObjectId(messId, "Mess ID") : String(messId),
     date: date || now.toISOString().split("T")[0],
     slotId: slot,
     mealType: canonicalMeal,
@@ -317,6 +320,9 @@ export async function createWasteRecord({
   const db = await getMongoDb();
   await ensureKitchenIndexes(db);
 
+  if (!hostelId) throw new Error("Hostel ID is required.");
+  if (!messId) throw new Error("Mess ID is required.");
+
   const now = new Date();
   const kg = Number(weightKg);
   if (!Number.isFinite(kg) || kg < 0.1) {
@@ -338,7 +344,7 @@ export async function createWasteRecord({
 
   const record = {
     hostelId: isValidObjectIdHex(hostelId) ? toObjectId(hostelId, "Hostel ID") : String(hostelId),
-    messId: isValidObjectIdHex(messId) ? toObjectId(messId, "Mess ID") : String(messId || "default-mess"),
+    messId: isValidObjectIdHex(messId) ? toObjectId(messId, "Mess ID") : String(messId),
     date: date || now.toISOString().split("T")[0],
     slotId: slot,
     mealType: canonicalMeal,
@@ -453,11 +459,15 @@ export async function getDemandData({ hostelId, messId, date, slotId }) {
   const today = date || new Date().toISOString().split("T")[0];
   const targetSlot = (slotId || "lunch").toLowerCase();
 
+  if (!hostelId) throw new Error("Hostel ID is required.");
+  if (!messId) throw new Error("Mess ID is required.");
+
   const query = {
     slotId: targetSlot,
     date: today,
+    hostelId: isValidObjectIdHex(hostelId) ? toObjectId(hostelId, "Hostel ID") : String(hostelId),
+    messId: isValidObjectIdHex(messId) ? toObjectId(messId, "Mess ID") : String(messId),
   };
-  if (hostelId) query.hostelId = hostelId;
 
   const existing = await db
     .collection(KITCHEN_DEMAND_COLLECTION)
@@ -470,8 +480,8 @@ export async function getDemandData({ hostelId, messId, date, slotId }) {
   // If no custom demand record exists yet for today, persist the baseline demand
   const baseline = getBaselineDemand(targetSlot);
   const newDemandDoc = {
-    hostelId: String(hostelId || "default-hostel"),
-    messId: String(messId || "default-mess"),
+    hostelId: isValidObjectIdHex(hostelId) ? toObjectId(hostelId, "Hostel ID") : String(hostelId),
+    messId: isValidObjectIdHex(messId) ? toObjectId(messId, "Mess ID") : String(messId),
     date: today,
     ...baseline,
     createdAt: new Date(),
@@ -495,6 +505,7 @@ export async function getDemandData({ hostelId, messId, date, slotId }) {
 
   const saved = await db.collection(KITCHEN_DEMAND_COLLECTION).findOne({
     hostelId: newDemandDoc.hostelId,
+    messId: newDemandDoc.messId,
     date: today,
     slotId: targetSlot,
   });

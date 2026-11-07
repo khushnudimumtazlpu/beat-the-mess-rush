@@ -10,18 +10,18 @@ export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
     const requestedHostelId = searchParams.get("hostelId");
+    const requestedMessId = searchParams.get("messId");
     const slotId = searchParams.get("slotId");
     const date = searchParams.get("date");
     const category = searchParams.get("category");
     const startDate = searchParams.get("startDate");
     const endDate = searchParams.get("endDate");
-    const messId = searchParams.get("messId");
 
-    const auth = await authorizeKitchenRequest(requestedHostelId);
+    const auth = await authorizeKitchenRequest(requestedHostelId, requestedMessId);
 
     const records = await getWasteRecords({
       hostelId: auth.hostelId,
-      messId: messId || auth.messId,
+      messId: auth.messId,
       date,
       slotId,
       category,
@@ -34,6 +34,7 @@ export async function GET(request) {
       data: records,
       meta: {
         hostelId: auth.hostelId,
+        messId: auth.messId,
         count: records.length,
       },
     });
@@ -65,11 +66,11 @@ export async function POST(request) {
       );
     }
 
-    const auth = await authorizeKitchenRequest(body.hostelId);
+    const auth = await authorizeKitchenRequest(body.hostelId, body.messId);
 
     const created = await createWasteRecord({
       hostelId: auth.hostelId,
-      messId: body.messId || auth.messId,
+      messId: auth.messId,
       date: body.date,
       slotId: body.slotId,
       dishName: body.dishName,
@@ -85,7 +86,7 @@ export async function POST(request) {
       {
         success: true,
         data: created,
-        message: "Food waste record logged successfully.",
+        message: "Waste record created successfully.",
       },
       { status: 201 }
     );
@@ -94,7 +95,7 @@ export async function POST(request) {
     return NextResponse.json(
       {
         success: false,
-        error: error.message || "Failed to log food waste.",
+        error: error.message || "Failed to create waste record.",
         code: error.code || "SERVER_ERROR",
       },
       { status }

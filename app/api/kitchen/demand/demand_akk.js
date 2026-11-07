@@ -6,15 +6,15 @@ export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
     const requestedHostelId = searchParams.get("hostelId");
+    const requestedMessId = searchParams.get("messId");
     const slotId = searchParams.get("slotId") || "lunch";
     const date = searchParams.get("date");
-    const messId = searchParams.get("messId");
 
-    const auth = await authorizeKitchenRequest(requestedHostelId);
+    const auth = await authorizeKitchenRequest(requestedHostelId, requestedMessId);
 
     const demand = await getDemandData({
       hostelId: auth.hostelId,
-      messId: messId || auth.messId,
+      messId: auth.messId,
       date,
       slotId,
     });
@@ -24,6 +24,7 @@ export async function GET(request) {
       data: demand,
       meta: {
         hostelId: auth.hostelId,
+        messId: auth.messId,
         slotId,
       },
     });
