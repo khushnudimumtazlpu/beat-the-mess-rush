@@ -56,14 +56,14 @@ function createMockDb() {
           };
         },
         async findOne(q = {}) {
-          if (q._id) {
-            return list.find((i) => i._id?.toString() === q._id?.toString()) || null;
-          }
           return (
             list.find((item) => {
               for (const [k, v] of Object.entries(q)) {
-                if (k === "_id") continue;
-                if (item[k] !== v) return false;
+                if (k === "_id") {
+                  if (item._id?.toString() !== v?.toString()) return false;
+                } else if (item[k]?.toString() !== v?.toString()) {
+                  return false;
+                }
               }
               return true;
             }) || null
@@ -75,9 +75,16 @@ function createMockDb() {
           return { insertedId: inserted._id };
         },
         async updateOne(q, update) {
-          const index = list.findIndex(
-            (i) => i._id?.toString() === q._id?.toString()
-          );
+          const index = list.findIndex((item) => {
+            for (const [k, v] of Object.entries(q)) {
+              if (k === "_id") {
+                if (item._id?.toString() !== v?.toString()) return false;
+              } else if (item[k]?.toString() !== v?.toString()) {
+                return false;
+              }
+            }
+            return true;
+          });
           if (index >= 0) {
             list[index] = { ...list[index], ...update.$set };
             return { modifiedCount: 1 };
@@ -233,6 +240,60 @@ describe("Kitchen API Route Handlers (_akk)", () => {
     });
 
     const res = await postProduction(tamperReq);
+    expect(res.status).toBe(403);
+    const json = await res.json();
+    expect(json.code).toBe("MESS_SCOPE_REQUIRED");
+  });
+
+  it("PATCH /api/kitchen/production prevents updating another mess's production record", async () => {
+    // Seed a production record belonging to mess-other
+    const insertRes = await mockDb.collection("kitchen_productions").insertOne({
+      hostelId: "hostel-test",
+      messId: "mess-other",
+      date: "2026-11-08",
+      slotId: "lunch",
+      dishName: "Paneer Butter Masala",
+      actualPrepared: 100,
+      portionsServed: 50,
+      status: "Preparing",
+    });
+
+    const patchReq = new Request("http://localhost:3000/api/kitchen/production", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: insertRes.insertedId.toString(),
+        portionsServed: 60,
+        status: "Ready",
+      }),
+    });
+
+    const res = await patchProduction(patchReq);
+    expect(res.status).toBe(404);
+    const json = await res.json();
+    expect(json.success).toBe(false);
+    expect(json.error).toMatch(/not found or access denied/i);
+
+    // Verify record in database remains unmodified
+    const recordInDb = await mockDb.collection("kitchen_productions").findOne({
+      _id: insertRes.insertedId,
+    });
+    expect(recordInDb.portionsServed).toBe(50);
+    expect(recordInDb.status).toBe("Preparing");
+  });
+
+  it("PATCH /api/kitchen/production rejects tampering with messId in request body (403)", async () => {
+    const patchReq = new Request("http://localhost:3000/api/kitchen/production", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: "prod-123",
+        messId: "mess-other",
+        portionsServed: 60,
+      }),
+    });
+
+    const res = await patchProduction(patchReq);
     expect(res.status).toBe(403);
     const json = await res.json();
     expect(json.code).toBe("MESS_SCOPE_REQUIRED");

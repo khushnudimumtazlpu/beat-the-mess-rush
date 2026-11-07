@@ -96,6 +96,14 @@ export async function authorizeKitchenRequest(
       );
     }
 
+    if (!effectiveMessId) {
+      throw new AuthorizationError(
+        "Mess assignment is required for kitchen operations.",
+        403,
+        "MESS_REQUIRED"
+      );
+    }
+
     // MESS_ADMIN requests are strictly locked to their assigned hostel
     if (requestedHostelId && String(requestedHostelId) !== String(effectiveHostelId)) {
       throw new AuthorizationError(
@@ -106,23 +114,11 @@ export async function authorizeKitchenRequest(
     }
 
     // MESS_ADMIN requests are strictly restricted to their assigned mess on the server side
-    if (effectiveMessId && requestedMessId && String(requestedMessId) !== String(effectiveMessId)) {
+    if (requestedMessId && String(requestedMessId) !== String(effectiveMessId)) {
       throw new AuthorizationError(
         "You do not have access to this mess's kitchen records.",
         403,
         "MESS_SCOPE_REQUIRED"
-      );
-    }
-
-    if (!effectiveMessId && requestedMessId) {
-      effectiveMessId = String(requestedMessId);
-    }
-
-    if (!effectiveMessId) {
-      throw new AuthorizationError(
-        "Mess assignment is required for kitchen operations.",
-        403,
-        "MESS_REQUIRED"
       );
     }
   } else if (isSuperAdmin) {
@@ -149,25 +145,30 @@ export async function authorizeKitchenRequest(
       );
     }
 
-    // Validate that the mess belongs to the selected hostel when database is reachable
-    try {
-      const db = await getMongoDb();
-      if (db?.collection) {
-        const messObjectId = isValidObjectIdHex(effectiveMessId)
-          ? toObjectId(effectiveMessId, "Mess ID")
-          : effectiveMessId;
-        const messDoc = await db.collection(MESS_COLLECTION).findOne({ _id: messObjectId });
-        if (messDoc && messDoc.hostelId && String(messDoc.hostelId) !== String(effectiveHostelId)) {
-          throw new AuthorizationError(
-            "The specified mess does not belong to the selected hostel.",
-            400,
-            "MESS_HOSTEL_MISMATCH"
-          );
-        }
-      }
-    } catch (err) {
-      if (err instanceof AuthorizationError) throw err;
-      // In mock test environments where collections are uninitialized, allow query to proceed
+    // Validate that the selected mess document exists and belongs to the selected hostel
+    const db = await getMongoDb();
+    const messObjectId = isValidObjectIdHex(effectiveMessId)
+      ? toObjectId(effectiveMessId, "Mess ID")
+      : effectiveMessId;
+    const query = isValidObjectIdHex(effectiveMessId)
+      ? { $or: [{ _id: messObjectId }, { _id: String(effectiveMessId) }] }
+      : { _id: effectiveMessId };
+    const messDoc = await db.collection(MESS_COLLECTION).findOne(query);
+
+    if (!messDoc) {
+      throw new AuthorizationError(
+        "The specified mess was not found.",
+        404,
+        "MESS_NOT_FOUND"
+      );
+    }
+
+    if (!messDoc.hostelId || String(messDoc.hostelId) !== String(effectiveHostelId)) {
+      throw new AuthorizationError(
+        "The specified mess does not belong to the selected hostel.",
+        400,
+        "MESS_HOSTEL_MISMATCH"
+      );
     }
   }
 

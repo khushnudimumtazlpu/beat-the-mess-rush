@@ -337,6 +337,16 @@ describe("Kitchen Module: Database Persistence & Multi-Tenant Isolation", () => 
     await expect(
       updateProductionRecord(created.id, {
         hostelId: "wrong-hostel",
+        messId: "mess-1",
+        status: "Completed",
+      })
+    ).rejects.toThrow("Production record not found or access denied.");
+
+    // Attempting cross-mess update must fail
+    await expect(
+      updateProductionRecord(created.id, {
+        hostelId: "hostel-alpha",
+        messId: "wrong-mess",
         status: "Completed",
       })
     ).rejects.toThrow("Production record not found or access denied.");
@@ -464,6 +474,21 @@ describe("Kitchen Module: Role-Based Authorization & Tenant Isolation", () => {
     ).rejects.toThrow("You do not have access to this mess's kitchen records.");
   });
 
+  it("rejects MESS_ADMIN without an assigned messId with 403 MESS_REQUIRED even if messId requested", async () => {
+    getSessionMock.mockResolvedValue({
+      user: {
+        id: "admin-no-mess",
+        role: USER_ROLE.MESS_ADMIN,
+        status: ACCOUNT_STATUS.ACTIVE,
+        hostelId: "hostel-101",
+      },
+    });
+
+    await expect(
+      authorizeKitchenRequest("hostel-101", "requested-mess")
+    ).rejects.toThrow("Mess assignment is required for kitchen operations.");
+  });
+
   it("prevents MESS_ADMIN from accessing a different hostel", async () => {
     getSessionMock.mockResolvedValue({
       user: {
@@ -471,6 +496,7 @@ describe("Kitchen Module: Role-Based Authorization & Tenant Isolation", () => {
         role: USER_ROLE.MESS_ADMIN,
         status: ACCOUNT_STATUS.ACTIVE,
         hostelId: "hostel-101",
+        messId: "mess-101",
       },
     });
 
@@ -479,7 +505,7 @@ describe("Kitchen Module: Role-Based Authorization & Tenant Isolation", () => {
     );
   });
 
-  it("allows active SUPER_ADMIN to query any hostel and mess", async () => {
+  it("allows active SUPER_ADMIN to query any hostel and mess when mess belongs to hostel", async () => {
     getSessionMock.mockResolvedValue({
       user: {
         id: "super-1",
@@ -490,9 +516,62 @@ describe("Kitchen Module: Role-Based Authorization & Tenant Isolation", () => {
       },
     });
 
+    const mockDb = {
+      collection: () => ({
+        findOne: async () => ({ _id: "mess-any-block", hostelId: "hostel-any-block" }),
+      }),
+    };
+    getMongoDbMock.mockResolvedValue(mockDb);
+
     const auth = await authorizeKitchenRequest("hostel-any-block", "mess-any-block");
     expect(auth.hostelId).toBe("hostel-any-block");
     expect(auth.messId).toBe("mess-any-block");
+  });
+
+  it("rejects SUPER_ADMIN when selected mess does not exist in MESS_COLLECTION (404)", async () => {
+    getSessionMock.mockResolvedValue({
+      user: {
+        id: "super-1",
+        role: USER_ROLE.SUPER_ADMIN,
+        status: ACCOUNT_STATUS.ACTIVE,
+        hostelId: "hostel-main",
+        messId: "mess-main",
+      },
+    });
+
+    const mockDb = {
+      collection: () => ({
+        findOne: async () => null,
+      }),
+    };
+    getMongoDbMock.mockResolvedValue(mockDb);
+
+    await expect(
+      authorizeKitchenRequest("hostel-alpha", "non-existent-mess")
+    ).rejects.toThrow("The specified mess was not found.");
+  });
+
+  it("rejects SUPER_ADMIN when selected mess has missing or mismatched hostelId (400)", async () => {
+    getSessionMock.mockResolvedValue({
+      user: {
+        id: "super-1",
+        role: USER_ROLE.SUPER_ADMIN,
+        status: ACCOUNT_STATUS.ACTIVE,
+        hostelId: "hostel-1",
+        messId: "mess-1",
+      },
+    });
+
+    const mockDb = {
+      collection: () => ({
+        findOne: async () => ({ _id: "mess-no-hostel" }),
+      }),
+    };
+    getMongoDbMock.mockResolvedValue(mockDb);
+
+    await expect(
+      authorizeKitchenRequest("hostel-1", "mess-no-hostel")
+    ).rejects.toThrow("The specified mess does not belong to the selected hostel.");
   });
 
   it("prevents SUPER_ADMIN from selecting a mess that belongs to another hostel", async () => {

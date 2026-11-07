@@ -190,7 +190,7 @@ export async function createProductionRecord({
  */
 export async function updateProductionRecord(
   recordId,
-  { hostelId, portionsServed, status, chef }
+  { hostelId, messId, portionsServed, status, chef }
 ) {
   const db = await getMongoDb();
   await ensureKitchenIndexes(db);
@@ -203,14 +203,26 @@ export async function updateProductionRecord(
   }
 
   const query = { _id: objectId };
-  if (hostelId) query.hostelId = hostelId;
+  if (hostelId) {
+    query.hostelId = isValidObjectIdHex(hostelId)
+      ? toObjectId(hostelId, "Hostel ID")
+      : hostelId;
+  }
+  if (messId) {
+    query.messId = isValidObjectIdHex(messId)
+      ? toObjectId(messId, "Mess ID")
+      : messId;
+  }
 
   const current = await db
     .collection(KITCHEN_PRODUCTION_COLLECTION)
     .findOne(query);
 
   if (!current) {
-    throw new Error("Production record not found or access denied.");
+    const notFoundError = new Error("Production record not found or access denied.");
+    notFoundError.status = 404;
+    notFoundError.code = "RECORD_NOT_FOUND";
+    throw notFoundError;
   }
 
   const updateFields = { updatedAt: new Date() };
