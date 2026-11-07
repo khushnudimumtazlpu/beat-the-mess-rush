@@ -86,6 +86,29 @@ describe("GET /api/queues/[id]/history", () => {
     requireActiveRolesMock.mockResolvedValue(activeAdmin);
   });
 
+  it("accepts an ISO from timestamp later on the same IST date as a date-only to", async () => {
+    const { findMock } = setupDatabase();
+
+    const response = await GET(
+      createRequest(
+        "http://localhost/api/queues/test/history?from=2026-11-07T20:00:00%2B05:30&to=2026-11-07"
+      ),
+      { params: { id: queueId.toString() } }
+    );
+
+    expect(response.status).toBe(200);
+
+    const filter = findMock.mock.calls[0][0];
+
+    expect(filter.recordedAt.$gte).toEqual(
+      new Date("2026-11-07T14:30:00.000Z")
+    );
+
+    expect(filter.recordedAt.$lt).toEqual(
+      new Date("2026-11-07T18:30:00.000Z")
+    );
+  });
+
   it("includes the complete selected IST date in the upper date boundary", async () => {
     const { findMock, countDocumentsMock } = setupDatabase();
 

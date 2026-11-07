@@ -1,4 +1,4 @@
-import "server-only";
+﻿import "server-only";
 
 import { toObjectId } from "../../../../../lib/mongo-ids.js";
 import { getMongoDb } from "../../../../../lib/mongodb.js";
@@ -271,7 +271,14 @@ export async function GET(request, { params }) {
       }
     }
 
-    if (fromDate && toDateStart && fromDate > toDateStart) {
+    const validationToDate =
+      to && isDateOnly(to) ? toDateExclusive : toDateStart;
+
+    if (
+      fromDate &&
+      validationToDate &&
+      fromDate > validationToDate
+    ) {
       return errorResponse(
         "'from' date cannot be later than 'to' date.",
         "INVALID_DATE_RANGE",
