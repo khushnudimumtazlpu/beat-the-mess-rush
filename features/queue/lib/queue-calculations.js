@@ -1,84 +1,33 @@
+﻿import {
+  QUEUE_CROWD_LEVELS,
+  QUEUE_STATUSES,
+  DEFAULT_CROWD_THRESHOLDS,
+} from "../../../lib/domain-contracts.js";
 
-/**
- * Queue Calculation Utilities
- *
- * Handles:
- * 1. Queue status calculation
- * 2. Crowd-level calculation
- * 3. Estimated waiting-time calculation
- * 4. Combined queue metrics
- *
- * Crowd thresholds are initial demo rules,
- * not real mess capacity limits.
- */
+// Re-export shared constants to preserve existing imports.
+export const CROWD_LEVELS = QUEUE_CROWD_LEVELS;
+export const CROWD_THRESHOLDS = DEFAULT_CROWD_THRESHOLDS;
+export { QUEUE_STATUSES };
 
-// -----------------------------------------
-// 1. QUEUE STATUS AND CROWD-LEVEL CONSTANTS
-// -----------------------------------------
-
-export const CROWD_LEVELS = {
-  LOW: "low",
-  MODERATE: "moderate",
-  HIGH: "high",
-  VERY_HIGH: "veryHigh",
-};
-
-export const QUEUE_STATUSES = {
-  OPEN: "open",
-  NORMAL: "normal",
-  BUSY: "busy",
-  CRITICAL: "critical",
-  CLOSED: "closed",
-};
-
-// Initial demo thresholds
-export const CROWD_THRESHOLDS = {
-  LOW: 8,
-  MODERATE: 20,
-  HIGH: 35,
-};
-
-// -----------------------------------------
-// 2. INPUT VALIDATION
-// -----------------------------------------
-
+// Validate queue length.
 export function validateWaitingCount(peopleWaiting) {
-  if (
-    !Number.isInteger(peopleWaiting) ||
-    peopleWaiting < 0
-  ) {
-    throw new Error(
-      "People waiting must be a non-negative integer."
-    );
+  if (!Number.isInteger(peopleWaiting) || peopleWaiting < 0) {
+    throw new Error("People waiting must be a non-negative integer.");
   }
 }
 
+// Validate serving rate.
 export function validateServingRate(servingRatePerMinute) {
   if (
     typeof servingRatePerMinute !== "number" ||
     !Number.isFinite(servingRatePerMinute) ||
     servingRatePerMinute <= 0
   ) {
-    throw new Error(
-      "Serving rate must be a positive number."
-    );
+    throw new Error("Serving rate must be a positive number.");
   }
 }
 
-// -----------------------------------------
-// 3. WAITING-TIME CALCULATION
-// -----------------------------------------
-
-/**
- * Calculates estimated waiting time in minutes.
- *
- * Formula:
- * Waiting Time = People Waiting / Serving Rate
- *
- * Example:
- * 20 people / 4 people per minute = 5 minutes
- */
-
+// Calculate estimated waiting time in minutes.
 export function calculateWaitingTime(
   peopleWaiting,
   servingRatePerMinute
@@ -86,24 +35,10 @@ export function calculateWaitingTime(
   validateWaitingCount(peopleWaiting);
   validateServingRate(servingRatePerMinute);
 
-  return Math.ceil(
-    peopleWaiting / servingRatePerMinute
-  );
+  return Math.ceil(peopleWaiting / servingRatePerMinute);
 }
 
-// -----------------------------------------
-// 4. CROWD-LEVEL CALCULATION
-// -----------------------------------------
-
-/**
- * Determines crowd level based on people waiting.
- *
- * 0-8    = Low
- * 9-20   = Moderate
- * 21-35  = High
- * Above 35 = Very High
- */
-
+// Determine crowd level using shared thresholds.
 export function getCrowdLevel(peopleWaiting) {
   validateWaitingCount(peopleWaiting);
 
@@ -122,23 +57,8 @@ export function getCrowdLevel(peopleWaiting) {
   return CROWD_LEVELS.VERY_HIGH;
 }
 
-// -----------------------------------------
-// 5. QUEUE STATUS CALCULATION
-// -----------------------------------------
-
-/**
- * Determines operational queue status.
- *
- * Closed queue = Closed
- * 0-8          = Normal
- * 9-35         = Busy
- * Above 35     = Critical
- */
-
-export function getQueueStatus(
-  peopleWaiting,
-  isOpen = true
-) {
+// Determine operational queue status.
+export function getQueueStatus(peopleWaiting, isOpen = true) {
   validateWaitingCount(peopleWaiting);
 
   if (typeof isOpen !== "boolean") {
@@ -160,23 +80,9 @@ export function getQueueStatus(
   return QUEUE_STATUSES.CRITICAL;
 }
 
-// -----------------------------------------
-// 6. COMBINED QUEUE METRICS
-// -----------------------------------------
-
-/**
- * Returns all calculated metrics for a queue.
- *
- * Required queue properties:
- * peopleWaiting
- * servingRatePerMinute
- *
- * Optional:
- * isOpen (defaults to true)
- */
-
+// Calculate all queue metrics.
 export function calculateQueueMetrics(queue) {
-  if (!queue || typeof queue !== "object") {
+  if (!queue || typeof queue !== "object" || Array.isArray(queue)) {
     throw new Error("Valid queue data is required.");
   }
 
