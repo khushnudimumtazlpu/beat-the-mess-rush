@@ -1,6 +1,8 @@
 import "server-only";
 import { ObjectId } from "mongodb";
 import { getMongoDb } from "../../../lib/mongodb.js";
+import { MEAL_TYPES } from "../../../lib/domain-contracts.js";
+import { toObjectId, isValidObjectIdHex } from "../../../lib/mongo-ids.js";
 import {
   withBuffer,
   efficiencyScore,
@@ -21,6 +23,18 @@ export const DEFAULT_SAFETY_BUFFER_PCT = 8;
 export const BENCHMARK_COST_PER_KG = 80;
 
 let indexesInitialized = false;
+
+/**
+ * Normalizes input meal/slot name into the canonical uppercase MEAL_TYPES enum.
+ */
+export function normalizeMealType(value) {
+  if (!value) return MEAL_TYPES.LUNCH;
+  const upper = String(value).trim().toUpperCase();
+  if (Object.values(MEAL_TYPES).includes(upper)) {
+    return upper;
+  }
+  return MEAL_TYPES.LUNCH;
+}
 
 /**
  * Ensures indexes exist on kitchen collections for fast querying and isolation.
@@ -49,13 +63,22 @@ export async function ensureKitchenIndexes(db) {
 }
 
 /**
- * Safely format document for JSON responses (converts _id to string).
+ * Safely format document for JSON responses (converts ObjectIds to hex strings).
  */
 export function sanitizeDoc(doc) {
   if (!doc) return null;
-  const { _id, ...rest } = doc;
+  const { _id, hostelId, messId, counterId, ...rest } = doc;
   return {
     id: _id instanceof ObjectId ? _id.toHexString() : String(_id),
+    ...(hostelId !== undefined
+      ? { hostelId: hostelId instanceof ObjectId ? hostelId.toHexString() : String(hostelId) }
+      : {}),
+    ...(messId !== undefined
+      ? { messId: messId instanceof ObjectId ? messId.toHexString() : String(messId) }
+      : {}),
+    ...(counterId !== undefined
+      ? { counterId: counterId instanceof ObjectId ? counterId.toHexString() : String(counterId) }
+      : {}),
     ...rest,
   };
 }
@@ -76,10 +99,19 @@ export async function getProductionRecords({
   await ensureKitchenIndexes(db);
 
   const query = {};
-  if (hostelId) query.hostelId = hostelId;
-  if (messId) query.messId = messId;
+  if (hostelId) {
+    query.hostelId = isValidObjectIdHex(hostelId) ? toObjectId(hostelId, "Hostel ID") : hostelId;
+  }
+  if (messId) {
+    query.messId = isValidObjectIdHex(messId) ? toObjectId(messId, "Mess ID") : messId;
+  }
   if (date) query.date = date;
-  if (slotId) query.slotId = slotId;
+  if (slotId) {
+    query.$or = [
+      { slotId: String(slotId).toLowerCase() },
+      { mealType: normalizeMealType(slotId) },
+    ];
+  }
 
   const records = await db
     .collection(KITCHEN_PRODUCTION_COLLECTION)
@@ -96,9 +128,11 @@ export async function getProductionRecords({
  */
 export async function createProductionRecord({
   hostelId,
-  messId = "default-mess",
+  messId,
   date,
   slotId,
+  mealType,
+  sessionId = null,
   dishId,
   dishName,
   plannedPortions = 0,
@@ -116,13 +150,16 @@ export async function createProductionRecord({
   const served = Number(portionsServed) || 0;
   const planned = Number(plannedPortions) || 0;
   const leftover = Math.max(0, prep - served);
+  const canonicalMeal = normalizeMealType(mealType || slotId);
+  const slot = canonicalMeal.toLowerCase();
 
   const record = {
-    hostelId: String(hostelId),
-    messId: String(messId),
+    hostelId: isValidObjectIdHex(hostelId) ? toObjectId(hostelId, "Hostel ID") : String(hostelId),
+    messId: isValidObjectIdHex(messId) ? toObjectId(messId, "Mess ID") : String(messId || "default-mess"),
     date: date || now.toISOString().split("T")[0],
-    slotId: String(slotId).toLowerCase(),
-    mealType: String(slotId).toLowerCase(),
+    slotId: slot,
+    mealType: canonicalMeal,
+    sessionId: sessionId ? String(sessionId) : null,
     dishId: String(dishId),
     dishName: String(dishName || dishId),
     plannedPortions: planned,
@@ -228,10 +265,19 @@ export async function getWasteRecords({
   await ensureKitchenIndexes(db);
 
   const query = {};
-  if (hostelId) query.hostelId = hostelId;
-  if (messId) query.messId = messId;
+  if (hostelId) {
+    query.hostelId = isValidObjectIdHex(hostelId) ? toObjectId(hostelId, "Hostel ID") : hostelId;
+  }
+  if (messId) {
+    query.messId = isValidObjectIdHex(messId) ? toObjectId(messId, "Mess ID") : messId;
+  }
   if (date) query.date = date;
-  if (slotId) query.slotId = slotId;
+  if (slotId) {
+    query.$or = [
+      { slotId: String(slotId).toLowerCase() },
+      { mealType: normalizeMealType(slotId) },
+    ];
+  }
   if (category) query.category = category;
 
   if (startDate || endDate) {
@@ -255,9 +301,11 @@ export async function getWasteRecords({
  */
 export async function createWasteRecord({
   hostelId,
-  messId = "default-mess",
+  messId,
   date,
   slotId,
+  mealType,
+  sessionId = null,
   dishName,
   category,
   weightKg,
@@ -285,12 +333,16 @@ export async function createWasteRecord({
       ? costInr
       : Math.round(kg * BENCHMARK_COST_PER_KG);
 
+  const canonicalMeal = normalizeMealType(mealType || slotId);
+  const slot = canonicalMeal.toLowerCase();
+
   const record = {
-    hostelId: String(hostelId),
-    messId: String(messId),
+    hostelId: isValidObjectIdHex(hostelId) ? toObjectId(hostelId, "Hostel ID") : String(hostelId),
+    messId: isValidObjectIdHex(messId) ? toObjectId(messId, "Mess ID") : String(messId || "default-mess"),
     date: date || now.toISOString().split("T")[0],
-    slotId: String(slotId).toLowerCase(),
-    mealType: String(slotId).toLowerCase(),
+    slotId: slot,
+    mealType: canonicalMeal,
+    sessionId: sessionId ? String(sessionId) : null,
     dishName: String(dishName),
     category: String(category),
     weightKg: Math.round(kg * 10) / 10,

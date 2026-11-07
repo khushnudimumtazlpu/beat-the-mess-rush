@@ -26,17 +26,21 @@ export async function authorizeKitchenRequest(requestedHostelId = null) {
     const session = await auth.api.getSession({ headers: requestHeaders });
     user = session?.user;
   } catch (error) {
-    // If running in development without a connected auth DB, inspect custom header
-    const devRole = requestHeaders.get("x-dev-role");
-    const devHostel = requestHeaders.get("x-dev-hostel");
-    if (devRole && [USER_ROLE.MESS_ADMIN, USER_ROLE.SUPER_ADMIN].includes(devRole)) {
-      user = {
-        id: "dev-user-01",
-        role: devRole,
-        status: ACCOUNT_STATUS.ACTIVE,
-        hostelId: devHostel || "hostel-main",
-      };
-    } else {
+    // Restrict dev header inspection strictly to test environments
+    if (process.env.NODE_ENV === "test") {
+      const devRole = requestHeaders.get("x-dev-role");
+      const devHostel = requestHeaders.get("x-dev-hostel");
+      if (devRole && [USER_ROLE.MESS_ADMIN, USER_ROLE.SUPER_ADMIN].includes(devRole)) {
+        user = {
+          id: "dev-user-01",
+          role: devRole,
+          status: ACCOUNT_STATUS.ACTIVE,
+          hostelId: devHostel || "hostel-main",
+        };
+      }
+    }
+
+    if (!user) {
       throw new AuthorizationError(
         error?.message || "Sign in is required.",
         401,
