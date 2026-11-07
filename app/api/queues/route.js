@@ -1,6 +1,6 @@
-﻿
-import { toObjectId } from "../../../lib/mongo-ids.js";
 
+import { toObjectId } from "../../../lib/mongo-ids.js";
+import { getIndiaServiceDate } from "../../../lib/india-service-date.js";
 import "server-only";
 
 import { randomUUID } from "node:crypto";
@@ -53,8 +53,6 @@ function errorResponse(message, code, status) {
 }
 
 function handleError(error) {
-  // Support both AuthorizationError instances and errors
-  // carrying a valid HTTP status and error code.
   if (
     error instanceof AuthorizationError ||
     (
@@ -97,6 +95,36 @@ function handleError(error) {
 }
 
 // --------------------------------------------------
+// QUEUE MUTATION VERSION GUARD
+// --------------------------------------------------
+
+async function bumpQueueMutationVersion({
+  collection,
+  filter,
+  session,
+  entityName,
+}) {
+  const result = await collection.updateOne(
+    filter,
+    {
+      $inc: { queueMutationVersion: 1 },
+    },
+    { session }
+  );
+
+  if (result.matchedCount !== 1) {
+    const error = new Error(
+      `${entityName} is inactive, missing, or could not be updated.`
+    );
+
+    error.status = 409;
+    error.code = "PARENT_ENTITY_INACTIVE";
+
+    throw error;
+  }
+}
+
+// --------------------------------------------------
 // QUEUE RESPONSE FORMATTER
 // --------------------------------------------------
 
@@ -128,7 +156,6 @@ function formatQueue(queue) {
 
 // --------------------------------------------------
 // GET /api/queues
-// Retrieve queues based on authenticated user role
 // --------------------------------------------------
 
 export async function GET(request) {
@@ -139,13 +166,9 @@ export async function GET(request) {
       USER_ROLE.STUDENT,
     ]);
 
-    // Validate all query parameters BEFORE connecting to MongoDB.
     const { searchParams } = new URL(request.url);
-
     const filter = {};
 
-    // Super Admin can view all hostels.
-    // Students and Mess Admins are restricted to their hostel.
     if (user.role !== USER_ROLE.SUPER_ADMIN) {
       filter.hostelId = toObjectId(user.hostelId, "hostelId");
     }
@@ -175,7 +198,6 @@ export async function GET(request) {
       filter.mealType = mealType;
     }
 
-    // Validate status and apply it directly in the MongoDB query.
     if (status) {
       if (!isAllowedValue(status, QUEUE_STATUSES)) {
         return errorResponse(
@@ -188,8 +210,86 @@ export async function GET(request) {
       filter.status = status;
     }
 
-    // Connect to MongoDB only after input validation succeeds.
     const db = await getMongoDb();
+
+    if (user.role === USER_ROLE.STUDENT) {
+      // Students may only see queues under their active Hostel, active Messes,
+      // and active Counters. Closed queues are never student-visible.
+      const hostel = await db
+        .collection(HOSTEL_COLLECTION)
+        .findOne({
+          _id: filter.hostelId,
+          status: "ACTIVE",
+        });
+
+      if (!hostel) {
+        return successResponse(
+          [],
+          "No active queues are available."
+        );
+      }
+
+      const activeMesses = await db
+        .collection(MESS_COLLECTION)
+        .find({
+          hostelId: filter.hostelId,
+          status: "ACTIVE",
+        })
+        .project({ _id: 1 })
+        .toArray();
+
+      const activeMessIds = activeMesses.map((mess) => mess._id);
+
+      if (activeMessIds.length === 0) {
+        return successResponse(
+          [],
+          "No active queues are available."
+        );
+      }
+
+      if (
+        messId &&
+        !activeMessIds.some((id) => id.equals(filter.messId))
+      ) {
+        return successResponse(
+          [],
+          "No active queues are available."
+        );
+      }
+
+      const visibleMessIds = messId ? [filter.messId] : activeMessIds;
+
+      const activeCounterFilter = {
+        hostelId: filter.hostelId,
+        messId: { $in: visibleMessIds },
+        status: "ACTIVE",
+      };
+
+      if (counterId) {
+        activeCounterFilter._id = filter.counterId;
+      }
+
+      const activeCounters = await db
+        .collection(COUNTER_COLLECTION)
+        .find(activeCounterFilter)
+        .project({ _id: 1 })
+        .toArray();
+
+      const activeCounterIds = activeCounters.map(
+        (counter) => counter._id
+      );
+
+      if (activeCounterIds.length === 0) {
+        return successResponse(
+          [],
+          "No active queues are available."
+        );
+      }
+
+      filter.messId = { $in: visibleMessIds };
+      filter.counterId = { $in: activeCounterIds };
+      filter.isOpen = true;
+    }
 
     const queues = await db
       .collection(QUEUE_COLLECTION)
@@ -197,10 +297,8 @@ export async function GET(request) {
       .sort({ updatedAt: -1 })
       .toArray();
 
-    const formattedQueues = queues.map(formatQueue);
-
     return successResponse(
-      formattedQueues,
+      queues.map(formatQueue),
       "Queues retrieved successfully."
     );
   } catch (error) {
@@ -210,7 +308,6 @@ export async function GET(request) {
 
 // --------------------------------------------------
 // POST /api/queues
-// Initialize a queue for an active counter
 // --------------------------------------------------
 
 export async function POST(request) {
@@ -220,7 +317,6 @@ export async function POST(request) {
       USER_ROLE.MESS_ADMIN,
     ]);
 
-    // Validate JSON body.
     let body;
 
     try {
@@ -277,7 +373,6 @@ export async function POST(request) {
     const counterObjectId = toObjectId(counterId, "counterId");
     const db = await getMongoDb();
 
-    // Find the counter.
     const counter = await db
       .collection(COUNTER_COLLECTION)
       .findOne({ _id: counterObjectId });
@@ -298,7 +393,6 @@ export async function POST(request) {
       );
     }
 
-    // Derive hostel and mess IDs from the database.
     const hostelId = counter.hostelId;
     const messId = counter.messId;
 
@@ -311,7 +405,6 @@ export async function POST(request) {
       );
     }
 
-    // Enforce Mess Admin hostel scope.
     if (user.role === USER_ROLE.MESS_ADMIN) {
       const assignedHostelId = toObjectId(user.hostelId, "hostelId");
 
@@ -324,7 +417,6 @@ export async function POST(request) {
       }
     }
 
-    // Verify that the parent hostel and mess are active.
     const [hostel, mess] = await Promise.all([
       db.collection(HOSTEL_COLLECTION).findOne({
         _id: hostelId,
@@ -345,7 +437,6 @@ export async function POST(request) {
       );
     }
 
-    // Use the supplied rate or the counter's default rate.
     const effectiveServingRate =
       servingRatePerMinute ??
       counter.defaultServingRatePerMinute;
@@ -362,7 +453,6 @@ export async function POST(request) {
       );
     }
 
-    // Create initial queue.
     const now = new Date();
     const queueId = new ObjectId();
     const sessionId = randomUUID();
@@ -377,16 +467,14 @@ export async function POST(request) {
       servingRatePerMinute: effectiveServingRate,
       isOpen: true,
       sessionId,
-      serviceDate: now.toISOString().slice(0, 10),
+      serviceDate: getIndiaServiceDate(now),
       createdAt: now,
       updatedAt: now,
     };
 
-    // Calculate and persist queue metrics.
     const metrics = calculateQueueMetrics(queue);
     Object.assign(queue, metrics);
 
-    // Create initial history record.
     const historyRecord = {
       _id: new ObjectId(),
       queueId,
@@ -405,12 +493,48 @@ export async function POST(request) {
       updatedBy: user.id,
     };
 
-    // Insert queue and history atomically.
     const client = await getMongoClient();
     const session = client.startSession();
 
     try {
       await session.withTransaction(async () => {
+        // Protect Counter.
+        await bumpQueueMutationVersion({
+          collection: db.collection(COUNTER_COLLECTION),
+          filter: {
+            _id: counterObjectId,
+            hostelId,
+            messId,
+            status: "ACTIVE",
+          },
+          session,
+          entityName: "Counter",
+        });
+
+        // Protect Mess.
+        await bumpQueueMutationVersion({
+          collection: db.collection(MESS_COLLECTION),
+          filter: {
+            _id: messId,
+            hostelId,
+            status: "ACTIVE",
+          },
+          session,
+          entityName: "Mess",
+        });
+
+        // Protect Hostel.
+        await bumpQueueMutationVersion({
+          collection: db.collection(HOSTEL_COLLECTION),
+          filter: {
+            _id: hostelId,
+            status: "ACTIVE",
+          },
+          session,
+          entityName: "Hostel",
+        });
+
+        // Queue and initial history remain atomic.
         await db.collection(QUEUE_COLLECTION).insertOne(queue, {
           session,
         });

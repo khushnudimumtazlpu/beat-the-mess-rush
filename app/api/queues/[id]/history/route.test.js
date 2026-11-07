@@ -132,6 +132,23 @@ describe("GET /api/queues/[id]/history", () => {
     expect(countDocumentsMock).toHaveBeenCalledWith(filter);
   });
 
+  it("rejects a from timestamp equal to the exclusive next-day boundary of a date-only to", async () => {
+    const response = await GET(
+      createRequest(
+        "http://localhost/api/queues/test/history?from=2026-11-07T18:30:00.000Z&to=2026-11-07"
+      ),
+      { params: { id: queueId.toString() } }
+    );
+
+    expect(response.status).toBe(400);
+
+    const result = await response.json();
+
+    expect(result.success).toBe(false);
+    expect(result.error.code).toBe("INVALID_DATE_RANGE");
+    expect(getMongoDbMock).not.toHaveBeenCalled();
+  });
+
   it("rejects an invalid date before connecting to MongoDB", async () => {
     const response = await GET(
       createRequest(

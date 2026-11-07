@@ -288,6 +288,20 @@ describe("PATCH /api/counters/[id]", () => {
     expect(result.success).toBe(true);
     expect(result.data.status).toBe("INACTIVE");
 
+    // Verify the mutation version increments during deactivation.
+    expect(mocks.updateCounterMock).toHaveBeenCalledWith(
+      { _id: counterId },
+      {
+        $set: expect.objectContaining({
+          status: "INACTIVE",
+        }),
+        $inc: {
+          queueMutationVersion: 1,
+        },
+      },
+      { session: sessionMock }
+    );
+
     expect(mocks.updateQueueMock).toHaveBeenCalledWith(
       expect.objectContaining({
         _id: queue._id,
@@ -315,6 +329,56 @@ describe("PATCH /api/counters/[id]", () => {
     );
   });
 
+  it("increments the mutation version when reactivating a counter", async () => {
+    const inactiveCounter = {
+      ...activeCounter,
+      status: "INACTIVE",
+    };
+
+    const mocks = setupDatabase({
+      counter: inactiveCounter,
+    });
+
+    const response = await PATCH(createRequest({ status: "ACTIVE" }), {
+      params: Promise.resolve({ id: counterId.toString() }),
+    });
+
+    expect(response.status).toBe(200);
+
+    expect(mocks.updateCounterMock).toHaveBeenCalledWith(
+      { _id: counterId },
+      {
+        $set: expect.objectContaining({
+          status: "ACTIVE",
+        }),
+        $inc: {
+          queueMutationVersion: 1,
+        },
+      },
+      { session: sessionMock }
+    );
+  });
+
+  it("does not increment the mutation version for ordinary detail updates", async () => {
+    const mocks = setupDatabase();
+
+    const response = await PATCH(createRequest({ name: "North Counter" }), {
+      params: Promise.resolve({ id: counterId.toString() }),
+    });
+
+    expect(response.status).toBe(200);
+
+    expect(mocks.updateCounterMock).toHaveBeenCalledWith(
+      { _id: counterId },
+      {
+        $set: expect.objectContaining({
+          name: "North Counter",
+        }),
+      },
+      { session: sessionMock }
+    );
+  });
+
   it("returns 409 for a duplicate counter code", async () => {
     setupDatabase();
 
@@ -332,6 +396,3 @@ describe("PATCH /api/counters/[id]", () => {
     expect(result.error.code).toBe("DUPLICATE_COUNTER_CODE");
   });
 });
-
-
-
