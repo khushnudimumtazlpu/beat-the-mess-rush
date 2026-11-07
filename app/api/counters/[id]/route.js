@@ -295,9 +295,23 @@ export async function PATCH(request, { params }) {
         updatedFields.status = body.status;
       }
 
+      // Increment the mutation version whenever Counter status changes.
+      const counterUpdate = {
+        $set: updatedFields,
+      };
+
+      const statusChanged =
+        body.status !== undefined && body.status !== counter.status;
+
+      if (statusChanged) {
+        counterUpdate.$inc = {
+          queueMutationVersion: 1,
+        };
+      }
+
       await db.collection(COUNTER_COLLECTION).updateOne(
         { _id: counterId },
-        { $set: updatedFields },
+        counterUpdate,
         { session }
       );
 
@@ -385,4 +399,3 @@ export async function PATCH(request, { params }) {
     }
   }
 }
-

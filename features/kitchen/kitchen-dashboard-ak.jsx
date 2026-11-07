@@ -24,7 +24,7 @@ export default function KitchenDashboardPage() {
               <UtensilsCrossed size={13} aria-hidden="true" /> KITCHEN PORTAL
             </span>
             <h1>Dashboard</h1>
-            <p>Review today's demand signals and manage production batches for each meal slot.</p>
+            <p>Review today&apos;s demand signals and manage production batches for each meal slot.</p>
           </div>
 
           {/* Quick nav links */}
