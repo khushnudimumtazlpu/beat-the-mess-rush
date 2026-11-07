@@ -1,8 +1,6 @@
-﻿
-import { toObjectId } from "../../../../../lib/mongo-ids.js";
-
 import "server-only";
 
+import { toObjectId } from "../../../../../lib/mongo-ids.js";
 import { getMongoDb } from "../../../../../lib/mongodb.js";
 
 import {
@@ -18,6 +16,8 @@ import {
 } from "../../../../../lib/domain-contracts.js";
 
 export const runtime = "nodejs";
+
+const INDIA_TIMEZONE_OFFSET_MINUTES = 330;
 
 // --------------------------------------------------
 // RESPONSE HELPERS
@@ -70,8 +70,32 @@ function handleError(error) {
 // DATE VALIDATION
 // --------------------------------------------------
 
+function isDateOnly(value) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(value);
+}
+
+function getIndiaDateStart(year, month, day) {
+  // IST is UTC +05:30.
+  // Convert India midnight into its corresponding UTC instant.
+  return new Date(
+    Date.UTC(year, month - 1, day) -
+      INDIA_TIMEZONE_OFFSET_MINUTES * 60 * 1000
+  );
+}
+
+function getNextIndiaDateStart(value) {
+  const [year, month, day] = value.split("-").map(Number);
+
+  const nextDay = new Date(Date.UTC(year, month - 1, day + 1));
+
+  return getIndiaDateStart(
+    nextDay.getUTCFullYear(),
+    nextDay.getUTCMonth() + 1,
+    nextDay.getUTCDate()
+  );
+}
+
 function parseDate(value, fieldName) {
-  // Accept YYYY-MM-DD or a complete ISO timestamp.
   const dateOnlyPattern = /^\d{4}-\d{2}-\d{2}$/;
 
   const timestampPattern =
@@ -87,15 +111,18 @@ function parseDate(value, fieldName) {
       ),
       {
         status: 400,
-        code: fieldName === "from"
-          ? "INVALID_FROM_DATE"
-          : "INVALID_TO_DATE",
+        code:
+          fieldName === "from"
+            ? "INVALID_FROM_DATE"
+            : "INVALID_TO_DATE",
       }
     );
   }
 
-  // Validate the calendar date independently.
-  const [year, month, day] = value.slice(0, 10).split("-").map(Number);
+  const [year, month, day] = value
+    .slice(0, 10)
+    .split("-")
+    .map(Number);
 
   const calendarDate = new Date(Date.UTC(year, month - 1, day));
 
@@ -108,11 +135,16 @@ function parseDate(value, fieldName) {
       new Error(`Invalid '${fieldName}' calendar date.`),
       {
         status: 400,
-        code: fieldName === "from"
-          ? "INVALID_FROM_DATE"
-          : "INVALID_TO_DATE",
+        code:
+          fieldName === "from"
+            ? "INVALID_FROM_DATE"
+            : "INVALID_TO_DATE",
       }
     );
+  }
+
+  if (dateOnlyPattern.test(value)) {
+    return getIndiaDateStart(year, month, day);
   }
 
   const parsedDate = new Date(value);
@@ -122,9 +154,10 @@ function parseDate(value, fieldName) {
       new Error(`Invalid '${fieldName}' date.`),
       {
         status: 400,
-        code: fieldName === "from"
-          ? "INVALID_FROM_DATE"
-          : "INVALID_TO_DATE",
+        code:
+          fieldName === "from"
+            ? "INVALID_FROM_DATE"
+            : "INVALID_TO_DATE",
       }
     );
   }
@@ -219,17 +252,26 @@ export async function GET(request, { params }) {
     const to = searchParams.get("to");
 
     let fromDate;
-    let toDate;
+    let toDateStart;
+    let toDateExclusive;
 
     if (from) {
       fromDate = parseDate(from, "from");
     }
 
     if (to) {
-      toDate = parseDate(to, "to");
+      toDateStart = parseDate(to, "to");
+
+      if (isDateOnly(to)) {
+        // Include the complete selected India calendar date.
+        // The next day's midnight is an exclusive upper boundary.
+        toDateExclusive = getNextIndiaDateStart(to);
+      } else {
+        toDateExclusive = toDateStart;
+      }
     }
 
-    if (fromDate && toDate && fromDate > toDate) {
+    if (fromDate && toDateStart && fromDate > toDateStart) {
       return errorResponse(
         "'from' date cannot be later than 'to' date.",
         "INVALID_DATE_RANGE",
@@ -275,15 +317,19 @@ export async function GET(request, { params }) {
       hostelId: queue.hostelId,
     };
 
-    if (fromDate || toDate) {
+    if (fromDate || toDateExclusive) {
       filter.recordedAt = {};
 
       if (fromDate) {
         filter.recordedAt.$gte = fromDate;
       }
 
-      if (toDate) {
-        filter.recordedAt.$lte = toDate;
+      if (toDateExclusive) {
+        if (to && isDateOnly(to)) {
+          filter.recordedAt.$lt = toDateExclusive;
+        } else {
+          filter.recordedAt.$lte = toDateExclusive;
+        }
       }
     }
 
@@ -320,7 +366,6 @@ export async function GET(request, { params }) {
       },
       "Queue history retrieved successfully."
     );
-
   } catch (error) {
     return handleError(error);
   }

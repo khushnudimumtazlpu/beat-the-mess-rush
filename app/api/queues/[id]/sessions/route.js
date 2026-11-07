@@ -32,6 +32,21 @@ import { calculateQueueMetrics } from "../../../../../features/queue/lib/queue-c
 
 export const runtime = "nodejs";
 
+function getIndiaServiceDate(date = new Date()) {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+
+  const values = Object.fromEntries(
+    parts.map(({ type, value }) => [type, value])
+  );
+
+  return `${values.year}-${values.month}-${values.day}`;
+}
+
 // --------------------------------------------------
 // RESPONSE HELPERS
 // --------------------------------------------------
@@ -309,7 +324,7 @@ export async function POST(request, { params }) {
         servingRatePerMinute: effectiveServingRate,
         isOpen: true,
         sessionId: newSessionId,
-        serviceDate: now.toISOString().slice(0, 10),
+        serviceDate: getIndiaServiceDate(now),
         updatedAt: now,
       };
 
