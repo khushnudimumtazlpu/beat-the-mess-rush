@@ -516,3 +516,436 @@
     animation: none;
   }
 }
+
+.admin-hostel-page {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.admin-hostel-manager {
+  display: grid;
+  gap: 1.1rem;
+}
+
+.admin-record-panel {
+  min-width: 0;
+  border: 1px solid var(--rush-line);
+  border-radius: 1.35rem;
+  padding: clamp(1rem, 2.5vw, 1.5rem);
+  background: rgba(255, 255, 255, 0.78);
+  box-shadow: var(--rush-shadow-soft);
+}
+
+.admin-record-panel__heading,
+.admin-record-form__heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.admin-record-panel__heading {
+  margin-bottom: 1.1rem;
+}
+
+.admin-record-panel__heading h2,
+.admin-record-form__heading h3 {
+  margin: 0.45rem 0 0;
+  font-family: var(--rush-font-display);
+  font-size: 1.35rem;
+  font-weight: 800;
+  letter-spacing: -0.045em;
+}
+
+.admin-record-panel__heading p {
+  margin: 0.35rem 0 0;
+  color: var(--rush-muted);
+  font-size: 0.82rem;
+}
+
+.admin-hostel-list,
+.admin-mess-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.8rem;
+}
+
+.admin-hostel-card,
+.admin-mess-card {
+  min-width: 0;
+  border: 1px solid var(--rush-line);
+  border-radius: 1rem;
+  background: rgba(255, 255, 255, 0.85);
+  transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+.admin-hostel-card:hover,
+.admin-mess-card:hover {
+  border-color: rgba(32, 150, 141, 0.34);
+  box-shadow: var(--rush-shadow-soft);
+  transform: translateY(-1px);
+}
+
+.admin-hostel-card.is-selected {
+  border-color: rgba(32, 150, 141, 0.58);
+  background: linear-gradient(145deg, rgba(225, 249, 244, 0.8), rgba(255, 255, 255, 0.96) 58%);
+  box-shadow: inset 0 0 0 1px rgba(32, 150, 141, 0.13), var(--rush-shadow-soft);
+}
+
+.admin-hostel-card__select {
+  display: flex;
+  width: 100%;
+  min-height: 4.6rem;
+  align-items: center;
+  gap: 0.7rem;
+  border: 0;
+  border-radius: 1rem 1rem 0 0;
+  padding: 0.8rem 0.85rem 0.65rem;
+  color: var(--rush-midnight);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.admin-hostel-card__icon,
+.admin-mess-card__icon {
+  display: grid;
+  width: 2.55rem;
+  height: 2.55rem;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid rgba(32, 214, 199, 0.2);
+  border-radius: 0.85rem;
+  color: #126e68;
+  background: #e1f9f4;
+}
+
+.admin-hostel-card__copy,
+.admin-mess-card__identity {
+  display: grid;
+  min-width: 0;
+  flex: 1;
+  gap: 0.2rem;
+}
+
+.admin-hostel-card__copy strong,
+.admin-mess-card__identity h3 {
+  overflow: hidden;
+  font-size: 0.9rem;
+  font-weight: 780;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-mess-card__identity h3 {
+  margin: 0;
+}
+
+.admin-hostel-card__copy > span,
+.admin-mess-card__identity > span {
+  color: var(--rush-muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
+.admin-hostel-card__chevron {
+  flex: 0 0 auto;
+  color: #126e68;
+  transition: transform 160ms ease;
+}
+
+.admin-hostel-card.is-selected .admin-hostel-card__chevron {
+  transform: translateX(2px);
+}
+
+.admin-hostel-card__actions,
+.admin-mess-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.4rem;
+  border-top: 1px solid rgba(11, 16, 32, 0.06);
+  padding: 0.45rem 0.6rem;
+}
+
+.admin-mess-card {
+  display: flex;
+  flex-direction: column;
+  padding: 0.9rem;
+}
+
+.admin-mess-card__top {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.admin-mess-card__description {
+  margin: 0.75rem 0 0;
+  color: var(--rush-muted);
+  font-size: 0.8rem;
+}
+
+.admin-mess-card__meals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.85rem;
+}
+
+.admin-mess-card__actions {
+  margin: 0.9rem -0.9rem -0.9rem;
+  padding: 0.45rem 0.65rem;
+}
+
+.admin-record-form {
+  display: grid;
+  gap: 1rem;
+  margin-top: 1rem;
+  border: 1px solid rgba(32, 150, 141, 0.2);
+  border-radius: 1.1rem;
+  padding: clamp(1rem, 2.5vw, 1.35rem);
+  background:
+    radial-gradient(ellipse at 100% 0%, rgba(32, 214, 199, 0.08), transparent 22rem),
+    #fffdfa;
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.9);
+}
+
+.admin-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: 0.9rem 1rem;
+}
+
+.admin-form-grid > .ui-field:nth-child(3) {
+  grid-column: 1 / -1;
+}
+
+.admin-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.55rem;
+  border-top: 1px solid var(--rush-line);
+  padding-top: 0.85rem;
+}
+
+.admin-meal-types {
+  min-width: 0;
+  grid-column: 1 / -1;
+  margin: 0;
+  border: 0;
+  padding: 0;
+}
+
+.admin-meal-types legend {
+  margin-bottom: 0.55rem;
+  font-size: 0.82rem;
+  font-weight: 750;
+}
+
+.admin-meal-types legend span {
+  margin-left: 0.3rem;
+  color: var(--rush-muted);
+  font-size: 0.72rem;
+  font-weight: 500;
+}
+
+.admin-meal-types__options {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.45rem;
+}
+
+.admin-meal-option {
+  display: flex;
+  min-height: 2.75rem;
+  align-items: center;
+  gap: 0.45rem;
+  border: 1px solid var(--rush-line);
+  border-radius: 0.75rem;
+  padding: 0.55rem 0.65rem;
+  color: var(--rush-muted);
+  background: white;
+  font-size: 0.7rem;
+  font-weight: 750;
+  cursor: pointer;
+  transition: color 140ms ease, border-color 140ms ease, background-color 140ms ease;
+}
+
+.admin-meal-option.is-selected {
+  border-color: rgba(32, 150, 141, 0.52);
+  color: #126e68;
+  background: #e9faf6;
+}
+
+.admin-meal-option input {
+  width: 1rem;
+  height: 1rem;
+  margin: 0;
+  accent-color: #168d84;
+}
+
+.admin-inline-error,
+.admin-inline-note {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  border-radius: 0.9rem;
+  padding: 0.85rem 1rem;
+  font-size: 0.82rem;
+}
+
+.admin-inline-error {
+  border: 1px solid rgba(203, 85, 74, 0.22);
+  color: #8f332e;
+  background: #fff1ef;
+}
+
+.admin-inline-error > span {
+  flex: 1;
+}
+
+.admin-inline-note {
+  margin: 0 0 0.9rem;
+  color: #725c1f;
+  background: #fff7dd;
+}
+
+.admin-notice {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  border: 1px solid transparent;
+  border-radius: 0.9rem;
+  padding: 0.75rem 0.9rem;
+  font-size: 0.84rem;
+  font-weight: 650;
+}
+
+.admin-notice--success {
+  border-color: rgba(32, 150, 141, 0.2);
+  color: #126e68;
+  background: #e9faf6;
+}
+
+.admin-notice--error {
+  border-color: rgba(203, 85, 74, 0.2);
+  color: #8f332e;
+  background: #fff1ef;
+}
+
+.admin-notice > span {
+  flex: 1;
+}
+
+.admin-notice__dismiss,
+.admin-icon-button {
+  display: grid;
+  width: 2.25rem;
+  height: 2.25rem;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid var(--rush-line);
+  border-radius: 0.7rem;
+  color: var(--rush-midnight);
+  background: white;
+  cursor: pointer;
+}
+
+.admin-notice__dismiss {
+  width: 1.9rem;
+  height: 1.9rem;
+  border-color: transparent;
+  color: inherit;
+  background: transparent;
+}
+
+.admin-record-skeleton {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.8rem;
+  padding: 0.1rem;
+}
+
+.admin-record-skeleton .admin-skeleton {
+  height: 5.2rem;
+}
+
+.admin-record-skeleton--messes {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.admin-record-skeleton--messes .admin-skeleton {
+  height: 8rem;
+}
+
+.admin-spin {
+  animation: admin-spin 900ms linear infinite;
+}
+
+.admin-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  clip-path: inset(50%);
+}
+
+.admin-hostel-manager :is(button, input, textarea):focus-visible {
+  outline: 3px solid rgba(32, 150, 141, 0.58);
+  outline-offset: 2px;
+}
+
+@keyframes admin-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (max-width: 700px) {
+  .admin-hostel-list,
+  .admin-mess-list {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-hostel-card__select {
+    gap: 0.55rem;
+    padding-inline: 0.65rem;
+  }
+}
+
+@media (max-width: 520px) {
+  .admin-record-panel__heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .admin-form-grid,
+  .admin-record-skeleton,
+  .admin-record-skeleton--messes {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-meal-types__options {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .admin-hostel-card__select .ui-badge {
+    font-size: 0.58rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-hostel-card,
+  .admin-mess-card,
+  .admin-hostel-card__chevron,
+  .admin-meal-option {
+    transition-duration: 0.01ms;
+  }
+
+  .admin-spin {
+    animation: none;
+  }
+}
