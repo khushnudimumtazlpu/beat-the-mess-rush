@@ -517,6 +517,200 @@
   }
 }
 
+.admin-mess-admin-page {
+  display: grid;
+  gap: 1.1rem;
+}
+
+.admin-mess-admin-manager {
+  display: grid;
+  gap: 1rem;
+}
+
+.admin-mess-admin-toolbar {
+  align-items: flex-end;
+}
+
+.admin-mess-admin-toolbar__actions {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.7rem;
+}
+
+.admin-mess-admin-toolbar__actions .ui-field {
+  min-width: 12rem;
+}
+
+.admin-mess-admin-list {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.admin-mess-admin-card {
+  min-width: 0;
+  border: 1px solid var(--rush-line);
+  border-radius: 1.05rem;
+  padding: clamp(0.9rem, 2vw, 1.2rem);
+  background: rgba(255, 255, 255, 0.85);
+  box-shadow: 0 10px 28px rgba(11, 16, 32, 0.045);
+}
+
+.admin-mess-admin-card__identity {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.admin-mess-admin-card__avatar {
+  display: grid;
+  width: 2.75rem;
+  height: 2.75rem;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid rgba(32, 214, 199, 0.2);
+  border-radius: 0.9rem;
+  color: #126e68;
+  background: #e1f9f4;
+}
+
+.admin-mess-admin-card__details {
+  display: grid;
+  min-width: 0;
+  flex: 1;
+  gap: 0.2rem;
+}
+
+.admin-mess-admin-card__details h3 {
+  overflow: hidden;
+  margin: 0;
+  font-size: 0.96rem;
+  font-weight: 780;
+  text-overflow: ellipsis;
+}
+
+.admin-mess-admin-card__email {
+  overflow: hidden;
+  color: var(--rush-muted);
+  font-size: 0.8rem;
+  text-overflow: ellipsis;
+}
+
+.admin-mess-admin-card__meta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin: 1rem 0 0;
+  border-top: 1px solid rgba(11, 16, 32, 0.07);
+  padding-top: 0.85rem;
+}
+
+.admin-mess-admin-card__meta div {
+  min-width: 0;
+}
+
+.admin-mess-admin-card__meta dt {
+  color: var(--rush-muted);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.admin-mess-admin-card__meta dd {
+  overflow-wrap: anywhere;
+  margin: 0.22rem 0 0;
+  font-size: 0.84rem;
+  font-weight: 650;
+}
+
+.admin-mess-admin-actions {
+  display: grid;
+  gap: 0.7rem;
+  margin-top: 1rem;
+  border-top: 1px solid rgba(11, 16, 32, 0.07);
+  padding-top: 0.85rem;
+}
+
+.admin-mess-admin-actions--pending {
+  grid-template-columns: minmax(13rem, 1fr) auto;
+  align-items: end;
+}
+
+.admin-mess-admin-actions__buttons {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.admin-mess-admin-actions--remove {
+  grid-template-columns: 1fr auto;
+  align-items: center;
+}
+
+.admin-mess-admin-actions--remove p,
+.admin-mess-admin-hostel-error {
+  margin: 0;
+  color: var(--rush-muted);
+  font-size: 0.8rem;
+}
+
+.admin-mess-admin-hostel-error {
+  grid-column: 1 / -1;
+  color: #8f332e;
+}
+
+.admin-mess-admin-loading {
+  display: flex;
+  min-height: 5rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.65rem;
+  color: var(--rush-muted);
+  font-size: 0.88rem;
+}
+
+.admin-mess-admin-manager :is(button, select, a):focus-visible {
+  outline: 3px solid rgba(32, 150, 141, 0.58);
+  outline-offset: 3px;
+}
+
+@media (max-width: 760px) {
+  .admin-mess-admin-toolbar,
+  .admin-mess-admin-toolbar__actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .admin-mess-admin-toolbar__actions .ui-field {
+    min-width: 0;
+  }
+
+  .admin-mess-admin-actions--pending,
+  .admin-mess-admin-actions--remove {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-mess-admin-actions__buttons {
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 480px) {
+  .admin-mess-admin-card__identity {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .admin-mess-admin-card__identity .ui-badge {
+    margin-left: 3.5rem;
+  }
+
+  .admin-mess-admin-card__meta {
+    grid-template-columns: 1fr;
+  }
+}
+
 .admin-hostel-page {
   display: grid;
   gap: 1.25rem;
