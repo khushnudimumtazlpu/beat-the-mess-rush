@@ -1,12 +1,15 @@
-import { Building2 } from "lucide-react";
-import { AdminSectionPlaceholder } from "../../../features/super-admin/admin-page-primitives.jsx";
+import { HostelMessManager } from "../../../features/super-admin/hostel-mess-manager.jsx";
+import { AdminPageHeading } from "../../../features/super-admin/admin-page-primitives.jsx";
 
 export default function HostelsPage() {
   return (
-    <AdminSectionPlaceholder
-      icon={Building2}
-      title="Hostels & Messes"
-      description="Manage campus hostels and their associated messes."
-    />
+    <div className="admin-hostel-page">
+      <AdminPageHeading
+        eyebrow="CAMPUS STRUCTURE"
+        title="Hostels & Messes"
+        description="Manage hostel records and the messes operating within each campus residence."
+      />
+      <HostelMessManager />
+    </div>
   );
 }
