@@ -42,7 +42,10 @@ export default async function LoginPage({ searchParams }) {
             <h2 id="login-title" className="mt-2 font-display text-2xl font-extrabold text-midnight">Sign in</h2>
             <LoginForm callbackUrl={callbackUrl} />
             <p className="mt-6 text-center text-sm text-muted">
-              Need an account? Registration will be available through your campus onboarding flow.
+              New to RushLess?{" "}
+              <Link className="font-semibold text-midnight underline underline-offset-4" href="/register">
+                Register
+              </Link>
             </p>
           </section>
         </div>
