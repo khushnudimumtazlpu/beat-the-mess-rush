@@ -1,12 +1,10 @@
-import { GraduationCap } from "lucide-react";
-import { AdminSectionPlaceholder } from "../../../features/super-admin/admin-page-primitives.jsx";
+import { StudentApprovalManager } from "../../../features/student-approval/student-approval-manager.jsx";
+
+export const metadata = {
+  title: "Student Approvals | RushLess",
+  description: "Review pending Student registrations across all Hostels.",
+};
 
 export default function StudentsPage() {
-  return (
-    <AdminSectionPlaceholder
-      icon={GraduationCap}
-      title="Students"
-      description="Review student approval requests by hostel."
-    />
-  );
+  return <StudentApprovalManager audience="superAdmin" />;
 }
