@@ -15,7 +15,7 @@ const kitchenNav = [
 
 export function KitchenShell({ children }) {
   return (
-    <AppShell navItems={kitchenNav}>
+    <AppShell navItems={kitchenNav} showLogout>
       <div className="kitchen-app">
         {/* Ribbon banner — live database status */}
         <div className="kitchen-demo-ribbon" role="note">

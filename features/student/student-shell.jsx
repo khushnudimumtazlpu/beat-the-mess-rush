@@ -12,7 +12,7 @@ const studentNav = [
 
 export function StudentShell({ children }) {
   return (
-    <AppShell navItems={studentNav}>
+    <AppShell navItems={studentNav} showLogout>
       <div className="student-app">
         <div className="student-demo-ribbon" role="note">
           <Badge tone="lavender" dot>Demo experience</Badge>

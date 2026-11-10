@@ -4,6 +4,7 @@ import { Brand } from "../../components/layout/brand.jsx";
 import { getCurrentSession } from "../../lib/auth-authorization.js";
 import { ACCOUNT_STATUS } from "../../lib/auth-contracts.js";
 import { homeForUser } from "../../lib/auth-redirects.js";
+import { LogoutButton } from "../../features/auth/logout-button.jsx";
 
 export const metadata = {
   title: "Approval pending | RushLess",
@@ -26,12 +27,15 @@ export default async function PendingPage() {
           <p className="mt-6 text-xs font-extrabold uppercase tracking-[0.18em] text-muted">Account review</p>
           <h1 className="mt-3 font-display text-3xl font-extrabold text-midnight sm:text-4xl">Your approval is pending</h1>
           <p className="mx-auto mt-4 max-w-xl text-muted">
-            Your account is signed in, but campus features stay unavailable until the assigned administrator approves it.
+            Your registration is awaiting approval. Campus features stay unavailable until the assigned administrator approves your account.
           </p>
           <p className="mt-7 text-sm text-muted">You can return here after approval to continue.</p>
           <Link className="mt-7 inline-flex font-semibold text-midnight underline underline-offset-4" href="/">
             Back to the public homepage
           </Link>
+          <div className="mt-5 flex justify-center">
+            <LogoutButton />
+          </div>
         </div>
       </div>
     </main>

@@ -4,10 +4,9 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRight, LockKeyhole } from "lucide-react";
 import { authClient } from "../../lib/auth-client.js";
-import { ACCOUNT_STATUS } from "../../lib/auth-contracts.js";
-import { homeForUser } from "../../lib/auth-redirects.js";
 import { Button } from "../../components/ui/button.jsx";
 import { InputField } from "../../components/ui/form-controls.jsx";
+import { readLoginCredentials, resolveLoginOutcome } from "./login-workflow.js";
 
 export function LoginForm({ callbackUrl }) {
   const router = useRouter();
@@ -22,24 +21,18 @@ export function LoginForm({ callbackUrl }) {
     setIsSubmitting(true);
 
     try {
-      const result = await authClient.signIn.email({
-        email: email.trim(),
-        password,
-      });
+      // Read the live controls at submit time. Password managers and browser
+      // autofill may update the DOM without firing React's onChange handler.
+      const credentials = readLoginCredentials(new FormData(event.currentTarget));
+      const result = await authClient.signIn.email(credentials);
 
-      if (result.error) {
-        setError("We couldn't sign you in with those details.");
+      const outcome = resolveLoginOutcome(result, callbackUrl);
+      if (outcome.type === "error") {
+        setError(outcome.message);
         return;
       }
 
-      const user = result.data?.user;
-      if (user?.status === ACCOUNT_STATUS.PENDING) {
-        router.replace("/pending");
-      } else if (user?.status === ACCOUNT_STATUS.ACTIVE) {
-        router.replace(callbackUrl || homeForUser(user));
-      } else {
-        router.replace("/access-denied");
-      }
+      router.replace(outcome.destination);
     } catch {
       setError("Sign in is unavailable right now. Please try again.");
     } finally {

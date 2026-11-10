@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { Brand } from "../../components/layout/brand.jsx";
 import { Button } from "../../components/ui/button.jsx";
+import { LogoutButton } from "../auth/logout-button.jsx";
 
 const adminNav = [
   { label: "Overview", href: "/admin", icon: LayoutDashboard },
@@ -114,6 +115,7 @@ export function AdminShell({ children }) {
           <span className="admin-sidebar__role">SUPER ADMIN</span>
           <p className="admin-sidebar__note">Global campus administration</p>
           <Button href="/" variant="hero-outline" size="small">Public homepage</Button>
+          <LogoutButton fullWidth variant="hero-outline" />
         </div>
       </aside>
 
@@ -141,7 +143,10 @@ export function AdminShell({ children }) {
             </button>
             <span>Super Admin</span>
           </div>
-          <Link className="admin-mobile-home" href="/" aria-label="Open public homepage">RushLess</Link>
+          <div className="admin-mobile-header__actions">
+            <LogoutButton className="admin-mobile-logout" variant="secondary" />
+            <Link className="admin-mobile-home" href="/" aria-label="Open public homepage">RushLess</Link>
+          </div>
         </header>
         <main className="admin-content" inert={menuOpen}>{children}</main>
       </div>

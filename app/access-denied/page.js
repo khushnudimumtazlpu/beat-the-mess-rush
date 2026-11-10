@@ -1,12 +1,16 @@
 import Link from "next/link";
 import { Brand } from "../../components/layout/brand.jsx";
+import { getCurrentSession } from "../../lib/auth-authorization.js";
+import { LogoutButton } from "../../features/auth/logout-button.jsx";
 
 export const metadata = {
   title: "Access unavailable | RushLess",
   description: "This RushLess area is not available to your account.",
 };
 
-export default function AccessDeniedPage() {
+export default async function AccessDeniedPage() {
+  const session = await getCurrentSession();
+
   return (
     <main className="min-h-screen bg-cream px-5 py-8 sm:px-8 sm:py-12">
       <div className="mx-auto flex min-h-[75vh] w-full max-w-3xl flex-col items-center justify-center text-center">
@@ -20,6 +24,11 @@ export default function AccessDeniedPage() {
           <Link className="mt-7 inline-flex font-semibold text-midnight underline underline-offset-4" href="/">
             Back to the public homepage
           </Link>
+          {session?.user ? (
+            <div className="mt-5 flex justify-center">
+              <LogoutButton />
+            </div>
+          ) : null}
         </section>
       </div>
     </main>

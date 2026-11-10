@@ -7,12 +7,14 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { Menu, X } from "lucide-react";
 import { Brand } from "./brand";
 import { Button } from "../ui/button";
+import { LogoutButton } from "../../features/auth/logout-button.jsx";
 
 export function SiteHeader({
   navItems = [],
   action,
   currentPath,
   brandHref = "/",
+  showLogout = false,
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const reduceMotion = useReducedMotion();
@@ -52,6 +54,7 @@ export function SiteHeader({
         ) : null}
 
         <div className="site-header__actions">
+          {showLogout ? <LogoutButton className="site-header__logout" variant="quiet" /> : null}
           {action ? (
             <Button
               className="site-header__desktop-action"

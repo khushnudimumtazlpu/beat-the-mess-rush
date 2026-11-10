@@ -9,7 +9,7 @@
     "start": "next start",
     "lint": "eslint .",
     "test": "vitest run",
-    "seed:super-admin": "node scripts/seed-super-admin.mjs"
+    "seed:super-admin": "node --conditions=react-server scripts/seed-super-admin.mjs"
   },
   "repository": {
     "type": "git",
@@ -31,7 +31,8 @@
     "next": "^16.4.3",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
-    "recharts": "^3.10.1"
+    "recharts": "^3.10.1",
+    "server-only": "^0.0.1"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.3.3",
