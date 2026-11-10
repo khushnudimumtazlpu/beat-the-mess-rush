@@ -261,6 +261,23 @@ textarea:focus-visible {
   gap: 0.7rem;
 }
 
+.auth-logout {
+  display: grid;
+  min-width: 0;
+  gap: 0.35rem;
+}
+
+.auth-logout__message {
+  margin: 0;
+  color: var(--rush-status-danger);
+  font-size: 0.75rem;
+  line-height: 1.35;
+}
+
+.site-header__logout {
+  white-space: nowrap;
+}
+
 .site-header__menu-button {
   display: none;
   width: 2.8rem;

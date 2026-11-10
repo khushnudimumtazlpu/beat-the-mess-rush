@@ -1,11 +1,8 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { ArrowRight, ClipboardCheck, Utensils } from "lucide-react";
 import { Brand } from "../../components/layout/brand.jsx";
 import { Button } from "../../components/ui/button.jsx";
-import { ACCOUNT_STATUS } from "../../lib/auth-contracts.js";
 import { getCurrentSession } from "../../lib/auth-authorization.js";
-import { homeForUser } from "../../lib/auth-redirects.js";
 import { RegistrationForm } from "../../features/auth/registration-form.jsx";
 
 export const metadata = {
@@ -15,10 +12,6 @@ export const metadata = {
 
 export default async function RegistrationPage() {
   const session = await getCurrentSession();
-  if (session?.user) {
-    if (session.user.status === ACCOUNT_STATUS.PENDING) redirect("/pending");
-    redirect(homeForUser(session.user));
-  }
 
   return (
     <main className="min-h-screen bg-cream px-5 py-8 sm:px-8 sm:py-12">
@@ -65,6 +58,11 @@ export default async function RegistrationPage() {
             <h2 id="registration-title" className="mt-2 font-display text-2xl font-extrabold text-midnight">
               Create your account
             </h2>
+            {session?.user ? (
+              <p className="mt-3 rounded-control bg-lavender/20 p-3 text-sm text-muted" role="note">
+                Your current account will stay signed in. Creating another account does not sign you into it.
+              </p>
+            ) : null}
             <p className="mt-2 text-sm leading-relaxed text-muted">
               New accounts stay pending until their approval process is available or complete.
             </p>

@@ -9,7 +9,7 @@
     "start": "next start",
     "lint": "eslint .",
     "test": "vitest run",
-    "seed:super-admin": "node scripts/seed-super-admin.mjs"
+    "seed:super-admin": "node --conditions=react-server scripts/seed-super-admin.mjs"
   },
   "repository": {
     "type": "git",

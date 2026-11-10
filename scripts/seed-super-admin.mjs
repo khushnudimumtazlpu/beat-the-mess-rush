@@ -1,7 +1,9 @@
-import { loadEnvConfig } from "@next/env";
+import nextEnv from "@next/env";
 import { getAuth } from "../lib/auth.js";
 import { getMongoDb } from "../lib/mongodb.js";
 import { bootstrapSuperAdmin } from "../lib/super-admin-bootstrap.js";
+
+const { loadEnvConfig } = nextEnv;
 
 loadEnvConfig(process.cwd());
 

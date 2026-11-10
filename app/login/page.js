@@ -1,9 +1,7 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { Brand } from "../../components/layout/brand.jsx";
-import { ACCOUNT_STATUS } from "../../lib/auth-contracts.js";
 import { getCurrentSession } from "../../lib/auth-authorization.js";
-import { homeForUser, safeInternalPath } from "../../lib/auth-redirects.js";
+import { safeInternalPath } from "../../lib/auth-redirects.js";
 import { LoginForm } from "../../features/auth/login-form.jsx";
 
 export const metadata = {
@@ -17,11 +15,6 @@ export default async function LoginPage({ searchParams }) {
     ? safeInternalPath(params.callbackUrl, null)
     : null;
   const session = await getCurrentSession();
-
-  if (session?.user) {
-    if (session.user.status === ACCOUNT_STATUS.PENDING) redirect("/pending");
-    redirect(homeForUser(session.user));
-  }
 
   return (
     <main className="min-h-screen bg-cream px-5 py-8 sm:px-8 sm:py-12">
@@ -40,6 +33,11 @@ export default async function LoginPage({ searchParams }) {
           <section className="rounded-panel border border-line bg-white p-6 shadow-lifted sm:p-9" aria-labelledby="login-title">
             <p className="text-xs font-bold uppercase tracking-[0.16em] text-muted">RushLess account</p>
             <h2 id="login-title" className="mt-2 font-display text-2xl font-extrabold text-midnight">Sign in</h2>
+            {session?.user ? (
+              <p className="mt-3 rounded-control bg-lavender/20 p-3 text-sm text-muted" role="note">
+                You are signed in already. Signing in here switches this browser to the account you enter, including its other tabs.
+              </p>
+            ) : null}
             <LoginForm callbackUrl={callbackUrl} />
             <p className="mt-6 text-center text-sm text-muted">
               New to RushLess?{" "}

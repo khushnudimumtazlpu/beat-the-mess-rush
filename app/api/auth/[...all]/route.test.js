@@ -51,6 +51,15 @@ describe("Better Auth route signup boundary", () => {
     expect(authPostMock).toHaveBeenCalledWith(request);
   });
 
+  it("delegates sign-out to Better Auth", async () => {
+    const request = new Request("http://localhost/api/auth/sign-out", { method: "POST" });
+    const response = await POST(request);
+
+    expect(response.status).toBe(200);
+    expect(getAuthMock).toHaveBeenCalledOnce();
+    expect(authPostMock).toHaveBeenCalledWith(request);
+  });
+
   it("continues routing session reads to Better Auth", async () => {
     const request = new Request("http://localhost/api/auth/get-session");
     const response = await GET(request);
