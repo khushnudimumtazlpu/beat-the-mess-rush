@@ -25,6 +25,13 @@ export const BENCHMARK_COST_PER_KG = 80;
 let indexesInitialized = false;
 
 /**
+ * Resets the cached index initialization state (primarily for test isolation).
+ */
+export function resetKitchenIndexesCache() {
+  indexesInitialized = false;
+}
+
+/**
  * Normalizes input meal/slot name into the canonical uppercase MEAL_TYPES enum.
  */
 export function normalizeMealType(value) {
@@ -38,6 +45,7 @@ export function normalizeMealType(value) {
 
 /**
  * Ensures indexes exist on kitchen collections for fast querying and isolation.
+ * Note: DDL operations should never be executed inside a multi-document transaction session.
  */
 export async function ensureKitchenIndexes(db) {
   if (indexesInitialized) return;
@@ -57,8 +65,14 @@ export async function ensureKitchenIndexes(db) {
       ),
     ]);
     indexesInitialized = true;
-  } catch {
-    // Indexes may already exist or running in mock environment
+  } catch (err) {
+    // If running in a test mock without collection.createIndex support, bypass gracefully
+    if (typeof db?.collection !== "function") {
+      return;
+    }
+    // Do not swallow unique-index creation failures or database errors
+    console.error("[kitchen-db] Failed to ensure kitchen indexes:", err);
+    throw err;
   }
 }
 
@@ -467,9 +481,13 @@ export function getBaselineDemand(slotId, bufferPct = DEFAULT_SAFETY_BUFFER_PCT)
  */
 export async function getDemandData({ hostelId, messId, date, slotId }, options = {}) {
   const db = await getMongoDb();
-  await ensureKitchenIndexes(db);
-
   const session = options?.session;
+
+  // Avoid running index DDL from inside a transaction session
+  if (!session) {
+    await ensureKitchenIndexes(db);
+  }
+
   const findOptions = session ? { session } : {};
   const updateOptions = session ? { session, upsert: true } : { upsert: true };
 
@@ -517,8 +535,14 @@ export async function getDemandData({ hostelId, messId, date, slotId }, options 
       { $setOnInsert: newDemandDoc },
       updateOptions
     );
-  } catch {
-    // Ignore duplicate key if concurrent
+  } catch (err) {
+    const isDupKey =
+      err?.code === 11000 ||
+      err?.message?.includes("E11000") ||
+      err?.codeName === "DuplicateKey";
+    if (!isDupKey) {
+      throw err;
+    }
   }
 
   const saved = await db.collection(KITCHEN_DEMAND_COLLECTION).findOne({
@@ -556,9 +580,15 @@ export async function syncStudentDemandAggregate(
   options = {}
 ) {
   const db = await getMongoDb();
-  await ensureKitchenIndexes(db);
-
   const session = options?.session;
+
+  // Avoid running index DDL from inside the transaction flow!
+  // DDL operations inside a MongoDB multi-document transaction fail with OperationCannotBePerformedInTransaction.
+  // Required indexes must be initialized before starting the transaction.
+  if (!session) {
+    await ensureKitchenIndexes(db);
+  }
+
   const findOptions = session ? { session } : {};
   const updateOptions = session ? { session, upsert: true } : { upsert: true };
 
@@ -603,14 +633,29 @@ export async function syncStudentDemandAggregate(
       updatedAt: new Date(),
     };
 
-    await db.collection(KITCHEN_DEMAND_COLLECTION).updateOne(
-      query,
-      {
-        $set: updateDoc,
-        $setOnInsert: { createdAt: new Date() },
-      },
-      updateOptions
-    );
+    const maxRetries = 2;
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        await db.collection(KITCHEN_DEMAND_COLLECTION).updateOne(
+          query,
+          {
+            $set: updateDoc,
+            $setOnInsert: { createdAt: new Date() },
+          },
+          updateOptions
+        );
+        break;
+      } catch (err) {
+        const isDupKey =
+          err?.code === 11000 ||
+          err?.message?.includes("E11000") ||
+          err?.codeName === "DuplicateKey";
+        if (isDupKey && attempt < maxRetries) {
+          continue;
+        }
+        throw err;
+      }
+    }
 
     const saved = await db.collection(KITCHEN_DEMAND_COLLECTION).findOne(query, findOptions);
     return sanitizeDoc(saved || updateDoc);
@@ -665,11 +710,30 @@ export async function syncStudentDemandAggregate(
     },
   ];
 
-  await db.collection(KITCHEN_DEMAND_COLLECTION).updateOne(
-    query,
-    pipeline,
-    updateOptions
-  );
+  // Handle concurrent baseline upsert race:
+  // If getDemandData() or another concurrent process inserts simultaneously and triggers an E11000
+  // duplicate key error during the upsert, retry the pipeline update. On retry, the document already
+  // exists in the unique collection, so the pipeline update succeeds atomically without an insert race.
+  const maxRetries = 2;
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      await db.collection(KITCHEN_DEMAND_COLLECTION).updateOne(
+        query,
+        pipeline,
+        updateOptions
+      );
+      break;
+    } catch (err) {
+      const isDupKey =
+        err?.code === 11000 ||
+        err?.message?.includes("E11000") ||
+        err?.codeName === "DuplicateKey";
+      if (isDupKey && attempt < maxRetries) {
+        continue;
+      }
+      throw err;
+    }
+  }
 
   const saved = await db.collection(KITCHEN_DEMAND_COLLECTION).findOne(query, findOptions);
   return sanitizeDoc(saved);

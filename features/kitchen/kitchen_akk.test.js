@@ -44,6 +44,8 @@ const {
   createWasteRecord,
   getDemandData,
   syncStudentDemandAggregate,
+  ensureKitchenIndexes,
+  resetKitchenIndexesCache,
   getKitchenAnalytics,
   KITCHEN_PRODUCTION_COLLECTION,
   KITCHEN_WASTE_COLLECTION,
@@ -668,52 +670,128 @@ describe("Kitchen Module: Database Persistence & Multi-Tenant Isolation", () => 
     updateOneSpy.mockRestore();
   });
 
-  it("handles concurrent student demand increments safely without baseline regression", async () => {
-    // Seed baseline
-    await getDemandData({
-      hostelId: "hostel-concurrent",
-      messId: "mess-concurrent",
+  it("ensures kitchen indexes rethrow errors on unique-index or database creation failure", async () => {
+    resetKitchenIndexesCache();
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const failingDb = {
+      collection: () => ({
+        createIndex: vi.fn(async () => {
+          throw new Error("E11000 index build failed: duplicate key on unique index");
+        }),
+      }),
+    };
+
+    await expect(ensureKitchenIndexes(failingDb)).rejects.toThrow(
+      "E11000 index build failed: duplicate key on unique index"
+    );
+    errorSpy.mockRestore();
+    resetKitchenIndexesCache();
+  });
+
+  it("avoids running index DDL operations when a transaction session is provided", async () => {
+    const mockSession = { id: "session-no-ddl-test" };
+    const demandCol = mockDb.collection(KITCHEN_DEMAND_COLLECTION);
+    const createIndexSpy = vi.spyOn(demandCol, "createIndex");
+
+    // Call syncStudentDemandAggregate with transaction session
+    await syncStudentDemandAggregate(
+      {
+        hostelId: "hostel-tx-ddl",
+        messId: "mess-tx-ddl",
+        date: "2026-11-10",
+        slotId: "lunch",
+        portionDelta: 1.0,
+      },
+      { session: mockSession }
+    );
+
+    // Verify DDL createIndex was NOT invoked inside the transaction flow
+    expect(createIndexSpy).not.toHaveBeenCalled();
+
+    createIndexSpy.mockRestore();
+  });
+
+  it("handles concurrent baseline upsert races (E11000 duplicate key) safely without failing or losing demand", async () => {
+    const demandCol = mockDb.collection(KITCHEN_DEMAND_COLLECTION);
+    let attempts = 0;
+    const originalUpdateOne = demandCol.updateOne;
+
+    // Simulate an E11000 race on the first attempt when two concurrent threads race to insert
+    demandCol.updateOne = vi.fn(async (...args) => {
+      attempts++;
+      if (attempts === 1) {
+        const dupError = new Error("E11000 duplicate key error collection: kitchen_demands");
+        dupError.code = 11000;
+        dupError.codeName = "DuplicateKey";
+        throw dupError;
+      }
+      return originalUpdateOne.apply(demandCol, args);
+    });
+
+    const result = await syncStudentDemandAggregate({
+      hostelId: "hostel-race",
+      messId: "mess-race",
+      date: "2026-11-10",
+      slotId: "dinner",
+      portionDelta: 1.5,
+    });
+
+    expect(attempts).toBe(2); // First failed with E11000, second succeeded on retry
+    expect(result.source).toBe("STUDENT_DEMAND");
+    expect(result.totalStudentIntent).toBe(1.5);
+    expect(result.recommendedTarget).toBe(Math.ceil(1.5 * 1.08));
+
+    demandCol.updateOne = originalUpdateOne;
+  });
+
+  it("handles high-volume concurrent increments, modifications, and cancellations with exact expected totals", async () => {
+    // 1. Seed illustrative baseline demand (lunch baseline is 420)
+    const baselineRecord = await getDemandData({
+      hostelId: "hostel-exact",
+      messId: "mess-exact",
       date: "2026-11-10",
       slotId: "lunch",
     });
+    expect(baselineRecord.source).toBe("BASELINE");
+    expect(baselineRecord.totalStudentIntent).toBe(420);
 
-    // Fire 3 simultaneous student demands
-    await Promise.all([
-      syncStudentDemandAggregate({
-        hostelId: "hostel-concurrent",
-        messId: "mess-concurrent",
-        date: "2026-11-10",
-        slotId: "lunch",
-        portionDelta: 1.0,
-      }),
-      syncStudentDemandAggregate({
-        hostelId: "hostel-concurrent",
-        messId: "mess-concurrent",
-        date: "2026-11-10",
-        slotId: "lunch",
-        portionDelta: 1.5,
-      }),
-      syncStudentDemandAggregate({
-        hostelId: "hostel-concurrent",
-        messId: "mess-concurrent",
-        date: "2026-11-10",
-        slotId: "lunch",
-        portionDelta: 1.0,
-      }),
-    ]);
+    // 2. Fire 10 simultaneous student demands with a mix of:
+    // - 5 Regular opt-ins (+1.0 each)
+    // - 2 Large opt-ins (+1.5 each)
+    // - 1 Portion upgrade from Regular to Large (+0.5)
+    // - 2 Cancellations (-1.0 each)
+    //
+    // Mathematical Expected Intent:
+    // First arrival atomically replaces the 420 baseline.
+    // Sum = (5 * 1.0) + (2 * 1.5) + (1 * 0.5) - (2 * 1.0)
+    //     = 5.0 + 3.0 + 0.5 - 2.0 = 6.5
+    // Recommended Target with 8% buffer: Math.ceil(6.5 * 1.08) = Math.ceil(7.02) = 8
+    const concurrentRequests = [
+      syncStudentDemandAggregate({ hostelId: "hostel-exact", messId: "mess-exact", date: "2026-11-10", slotId: "lunch", portionDelta: 1.0 }),
+      syncStudentDemandAggregate({ hostelId: "hostel-exact", messId: "mess-exact", date: "2026-11-10", slotId: "lunch", portionDelta: 1.0 }),
+      syncStudentDemandAggregate({ hostelId: "hostel-exact", messId: "mess-exact", date: "2026-11-10", slotId: "lunch", portionDelta: 1.0 }),
+      syncStudentDemandAggregate({ hostelId: "hostel-exact", messId: "mess-exact", date: "2026-11-10", slotId: "lunch", portionDelta: 1.0 }),
+      syncStudentDemandAggregate({ hostelId: "hostel-exact", messId: "mess-exact", date: "2026-11-10", slotId: "lunch", portionDelta: 1.0 }),
+      syncStudentDemandAggregate({ hostelId: "hostel-exact", messId: "mess-exact", date: "2026-11-10", slotId: "lunch", portionDelta: 1.5 }),
+      syncStudentDemandAggregate({ hostelId: "hostel-exact", messId: "mess-exact", date: "2026-11-10", slotId: "lunch", portionDelta: 1.5 }),
+      syncStudentDemandAggregate({ hostelId: "hostel-exact", messId: "mess-exact", date: "2026-11-10", slotId: "lunch", portionDelta: 0.5 }),
+      syncStudentDemandAggregate({ hostelId: "hostel-exact", messId: "mess-exact", date: "2026-11-10", slotId: "lunch", portionDelta: -1.0 }),
+      syncStudentDemandAggregate({ hostelId: "hostel-exact", messId: "mess-exact", date: "2026-11-10", slotId: "lunch", portionDelta: -1.0 }),
+    ];
 
-    // Final demand must be real student demand with source STUDENT_DEMAND (not baseline 420)
+    await Promise.all(concurrentRequests);
+
+    // 3. Final demand document must match the exact mathematical accumulator
     const finalRecord = await getDemandData({
-      hostelId: "hostel-concurrent",
-      messId: "mess-concurrent",
+      hostelId: "hostel-exact",
+      messId: "mess-exact",
       date: "2026-11-10",
       slotId: "lunch",
     });
 
     expect(finalRecord.source).toBe("STUDENT_DEMAND");
-    expect(finalRecord.totalStudentIntent).toBeGreaterThanOrEqual(1.0);
-    expect(finalRecord.totalStudentIntent).toBeLessThanOrEqual(3.5);
-    expect(finalRecord.recommendedTarget).toBe(withBuffer(finalRecord.totalStudentIntent, 8));
+    expect(finalRecord.totalStudentIntent).toBe(6.5);
+    expect(finalRecord.recommendedTarget).toBe(8);
   });
 });
 
