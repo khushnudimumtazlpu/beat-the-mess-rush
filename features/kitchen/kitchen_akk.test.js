@@ -100,6 +100,22 @@ function createMockDb() {
       const condResult = evalExpr(condIf, doc);
       return condResult ? evalExpr(condThen, doc) : evalExpr(condElse, doc);
     }
+    if ("$or" in expr) {
+      return expr.$or.some((item) => Boolean(evalExpr(item, doc)));
+    }
+    if ("$and" in expr) {
+      return expr.$and.every((item) => Boolean(evalExpr(item, doc)));
+    }
+    if ("$ne" in expr) {
+      const [a, b] = expr.$ne;
+      return evalExpr(a, doc) !== evalExpr(b, doc);
+    }
+    if ("$in" in expr) {
+      const [val, list] = expr.$in;
+      const evaluatedVal = evalExpr(val, doc);
+      const evaluatedList = evalExpr(list, doc);
+      return Array.isArray(evaluatedList) ? evaluatedList.includes(evaluatedVal) : false;
+    }
     if ("$eq" in expr) {
       const [a, b] = expr.$eq;
       return evalExpr(a, doc) === evalExpr(b, doc);
@@ -596,6 +612,70 @@ describe("Kitchen Module: Database Persistence & Multi-Tenant Isolation", () => 
     });
     expect(syncedFloor.totalStudentIntent).toBe(0);
     expect(syncedFloor.recommendedTarget).toBe(0);
+  });
+
+  it("backward-compatibility: replaces legacy baseline document with missing source field on first student demand", async () => {
+    const demandCol = (await getMongoDbMock()).collection(KITCHEN_DEMAND_COLLECTION);
+
+    // 1. Seed a legacy document directly without a 'source' field (as persisted by pre-PR #28 code)
+    const legacyDoc = {
+      hostelId: "hostel-legacy",
+      messId: "mess-legacy",
+      date: "2026-11-10",
+      slotId: "lunch",
+      slotLabel: "Lunch (12:00 – 2:00 PM)",
+      totalStudentIntent: 420, // legacy baseline value
+      recommendedTarget: 454,
+      bufferPct: 8,
+      dishBreakdown: [
+        { dishId: "dal-rice", dishName: "Dal & Jeera Rice", studentDemand: 210 },
+      ],
+      hourlyFlow: [
+        { time: "12:00 PM", students: 90 },
+      ],
+      createdAt: new Date("2026-11-01"),
+      updatedAt: new Date("2026-11-01"),
+      // Notice: NO 'source' field present!
+    };
+    await demandCol.insertOne(legacyDoc);
+
+    // Verify it exists in legacy format without source
+    const rawLegacy = await demandCol.findOne({
+      hostelId: "hostel-legacy",
+      messId: "mess-legacy",
+      date: "2026-11-10",
+      slotId: "lunch",
+    });
+    expect(rawLegacy.source).toBeUndefined();
+    expect(rawLegacy.totalStudentIntent).toBe(420);
+
+    // 2. First student arrives with portionDelta: 1.5
+    const syncedFirst = await syncStudentDemandAggregate({
+      hostelId: "hostel-legacy",
+      messId: "mess-legacy",
+      date: "2026-11-10",
+      slotId: "lunch",
+      portionDelta: 1.5,
+    });
+
+    // 3. Must atomically replace the 420 baseline with 1.5, NOT add 420 + 1.5 = 421.5
+    expect(syncedFirst.source).toBe("STUDENT_DEMAND");
+    expect(syncedFirst.totalStudentIntent).toBe(1.5);
+    expect(syncedFirst.recommendedTarget).toBe(Math.ceil(1.5 * 1.08)); // 2
+
+    // 4. Second student arrives with portionDelta: 1.0
+    const syncedSecond = await syncStudentDemandAggregate({
+      hostelId: "hostel-legacy",
+      messId: "mess-legacy",
+      date: "2026-11-10",
+      slotId: "lunch",
+      portionDelta: 1.0,
+    });
+
+    // 5. Subsequent update correctly increments on top of real student demand (1.5 + 1.0 = 2.5)
+    expect(syncedSecond.source).toBe("STUDENT_DEMAND");
+    expect(syncedSecond.totalStudentIntent).toBe(2.5);
+    expect(syncedSecond.recommendedTarget).toBe(Math.ceil(2.5 * 1.08)); // 3
   });
 
   it("supports idempotent synchronization with absolute totalIntent", async () => {

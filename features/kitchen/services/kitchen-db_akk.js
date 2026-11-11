@@ -509,7 +509,11 @@ export async function getDemandData({ hostelId, messId, date, slotId }, options 
     .findOne(query, findOptions);
 
   if (existing) {
-    return sanitizeDoc(existing);
+    const sanitized = sanitizeDoc(existing);
+    if (!sanitized.source) {
+      sanitized.source = "BASELINE";
+    }
+    return sanitized;
   }
 
   // If no custom demand record exists yet for today, prepare baseline demand
@@ -711,12 +715,32 @@ export async function syncStudentDemandAggregate(
   // - Normal increment/decrement: if $source != "BASELINE", adds delta to current total
   // - Floor at 0: $max prevents negative numbers under heavy cancellations
   // - Target sync: calculates recommendedTarget = ceil(totalStudentIntent * 1.08)
+  // Handles backward compatibility:
+  // - Replaces baseline when source is explicitly "BASELINE" OR when a legacy baseline document
+  //   lacks a source field (not marked as STUDENT_DEMAND).
+  const isBaselineExpr = {
+    $or: [
+      { $eq: ["$source", "BASELINE"] },
+      {
+        $and: [
+          { $ne: ["$source", "STUDENT_DEMAND"] },
+          {
+            $or: [
+              { $eq: [{ $ifNull: ["$source", null] }, null] },
+              { $in: ["$totalStudentIntent", [185, 420, 160, 310]] },
+            ],
+          },
+        ],
+      },
+    ],
+  };
+
   const pipeline = [
     {
       $set: {
         totalStudentIntent: {
           $cond: {
-            if: { $eq: ["$source", "BASELINE"] },
+            if: isBaselineExpr,
             then: { $max: [0, delta] },
             else: {
               $max: [
