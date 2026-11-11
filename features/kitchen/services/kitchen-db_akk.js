@@ -25,6 +25,13 @@ export const BENCHMARK_COST_PER_KG = 80;
 let indexesInitialized = false;
 
 /**
+ * Resets the cached index initialization state (primarily for test isolation).
+ */
+export function resetKitchenIndexesCache() {
+  indexesInitialized = false;
+}
+
+/**
  * Normalizes input meal/slot name into the canonical uppercase MEAL_TYPES enum.
  */
 export function normalizeMealType(value) {
@@ -38,6 +45,7 @@ export function normalizeMealType(value) {
 
 /**
  * Ensures indexes exist on kitchen collections for fast querying and isolation.
+ * Note: DDL operations should never be executed inside a multi-document transaction session.
  */
 export async function ensureKitchenIndexes(db) {
   if (indexesInitialized) return;
@@ -57,8 +65,14 @@ export async function ensureKitchenIndexes(db) {
       ),
     ]);
     indexesInitialized = true;
-  } catch {
-    // Indexes may already exist or running in mock environment
+  } catch (err) {
+    // If running in a test mock without collection.createIndex support, bypass gracefully
+    if (typeof db?.collection !== "function") {
+      return;
+    }
+    // Do not swallow unique-index creation failures or database errors
+    console.error("[kitchen-db] Failed to ensure kitchen indexes:", err);
+    throw err;
   }
 }
 
@@ -456,6 +470,7 @@ export function getBaselineDemand(slotId, bufferPct = DEFAULT_SAFETY_BUFFER_PCT)
 
   const selected = templates[slotId] || templates.lunch;
   return {
+    source: "BASELINE",
     ...selected,
     recommendedTarget: withBuffer(selected.totalStudentIntent, bufferPct),
   };
@@ -463,11 +478,19 @@ export function getBaselineDemand(slotId, bufferPct = DEFAULT_SAFETY_BUFFER_PCT)
 
 /**
  * Get meal demand data for planning, comparing with past consumption.
+ * When called inside a transaction (options.session present), it performs a read-only query
+ * to avoid duplicate-key write races on the unique aggregate index inside the transaction.
  */
-export async function getDemandData({ hostelId, messId, date, slotId }) {
+export async function getDemandData({ hostelId, messId, date, slotId }, options = {}) {
   const db = await getMongoDb();
-  await ensureKitchenIndexes(db);
+  const session = options?.session;
 
+  // Avoid running index DDL from inside a transaction session
+  if (!session) {
+    await ensureKitchenIndexes(db);
+  }
+
+  const findOptions = session ? { session } : {};
   const today = date || new Date().toISOString().split("T")[0];
   const targetSlot = (slotId || "lunch").toLowerCase();
 
@@ -483,23 +506,34 @@ export async function getDemandData({ hostelId, messId, date, slotId }) {
 
   const existing = await db
     .collection(KITCHEN_DEMAND_COLLECTION)
-    .findOne(query);
+    .findOne(query, findOptions);
 
   if (existing) {
-    return sanitizeDoc(existing);
+    const sanitized = sanitizeDoc(existing);
+    if (!sanitized.source) {
+      sanitized.source = "BASELINE";
+    }
+    return sanitized;
   }
 
-  // If no custom demand record exists yet for today, persist the baseline demand
+  // If no custom demand record exists yet for today, prepare baseline demand
   const baseline = getBaselineDemand(targetSlot);
   const newDemandDoc = {
     hostelId: isValidObjectIdHex(hostelId) ? toObjectId(hostelId, "Hostel ID") : String(hostelId),
     messId: isValidObjectIdHex(messId) ? toObjectId(messId, "Mess ID") : String(messId),
     date: today,
+    source: "BASELINE",
     ...baseline,
     createdAt: new Date(),
     updatedAt: new Date(),
   };
 
+  // Inside a transaction (session present): read-only semantics to prevent transaction aborts
+  if (session) {
+    return sanitizeDoc(newDemandDoc);
+  }
+
+  // Outside a transaction: safe upsert with duplicate-key race catch
   try {
     await db.collection(KITCHEN_DEMAND_COLLECTION).updateOne(
       {
@@ -511,18 +545,279 @@ export async function getDemandData({ hostelId, messId, date, slotId }) {
       { $setOnInsert: newDemandDoc },
       { upsert: true }
     );
-  } catch {
-    // Ignore duplicate key if concurrent
+  } catch (err) {
+    const isDupKey =
+      err?.code === 11000 ||
+      err?.message?.includes("E11000") ||
+      err?.codeName === "DuplicateKey";
+    if (!isDupKey) {
+      throw err;
+    }
   }
 
-  const saved = await db.collection(KITCHEN_DEMAND_COLLECTION).findOne({
-    hostelId: newDemandDoc.hostelId,
-    messId: newDemandDoc.messId,
-    date: today,
-    slotId: targetSlot,
-  });
-
+  const saved = await db.collection(KITCHEN_DEMAND_COLLECTION).findOne(query);
   return sanitizeDoc(saved || newDemandDoc);
+}
+
+/**
+ * Pre-initializes a kitchen demand record and ensures kitchen indexes outside
+ * of any transaction.
+ *
+ * Calling this before entering a multi-document Student transaction guarantees:
+ * 1. Required unique indexes exist on kitchen_demands.
+ * 2. An aggregate document already exists for (hostelId, messId, date, slotId).
+ * 3. Subsequent syncStudentDemandAggregate() calls inside the transaction only perform
+ *    in-place updates on existing documents, completely eliminating E11000 duplicate-key
+ *    upsert races from ever occurring inside the transaction.
+ */
+export async function ensureKitchenDemandRecord({ hostelId, messId, date, slotId }) {
+  const db = await getMongoDb();
+  await ensureKitchenIndexes(db);
+  return getDemandData({ hostelId, messId, date, slotId });
+}
+
+/**
+ * Synchronize aggregate meal demand from student demand submissions.
+ * Replaces illustrative baseline records on the first real student submission,
+ * and maintains totalStudentIntent and recommendedTarget atomically.
+ *
+ * Concurrency & Transaction Guarantees:
+ * 1. Truly atomic database update: Uses an Aggregation Pipeline in updateOne() so increments,
+ *    decrements, baseline replacement, and recommendedTarget recalculation occur in a single
+ *    atomic operation inside the database engine without read-modify-write lost updates.
+ * 2. Absolute totalIntent path: For idempotent full-sync and retry operations.
+ * 3. Never negative: Floor at 0 enforced atomically ($max: [0, ...]).
+ * 4. Transaction session: Supports options.session. When running inside a transaction, any
+ *    transient errors propagate to the outer transaction boundary (e.g. session.withTransaction())
+ *    rather than attempting unsafe retries on an aborted session.
+ */
+export async function syncStudentDemandAggregate(
+  {
+    hostelId,
+    messId,
+    date,
+    slotId,
+    portionDelta = null,
+    totalIntent = null,
+  },
+  options = {}
+) {
+  const db = await getMongoDb();
+  const session = options?.session;
+
+  // Avoid running index DDL from inside the transaction flow!
+  // DDL operations inside a MongoDB multi-document transaction fail with OperationCannotBePerformedInTransaction.
+  // Required indexes must be initialized before starting the transaction.
+  if (!session) {
+    await ensureKitchenIndexes(db);
+  }
+
+  const findOptions = session ? { session } : {};
+  const updateOptions = session ? { session, upsert: false } : { upsert: true };
+
+  const today = date || new Date().toISOString().split("T")[0];
+  const targetSlot = (slotId || "lunch").toLowerCase();
+
+  if (!hostelId) throw new Error("Hostel ID is required.");
+  if (!messId) throw new Error("Mess ID is required.");
+
+  const hid = isValidObjectIdHex(hostelId) ? toObjectId(hostelId, "Hostel ID") : String(hostelId);
+  const mid = isValidObjectIdHex(messId) ? toObjectId(messId, "Mess ID") : String(messId);
+
+  const query = {
+    slotId: targetSlot,
+    date: today,
+    hostelId: hid,
+    messId: mid,
+  };
+
+  const slotLabels = {
+    breakfast: "Breakfast (7:30 – 9:30 AM)",
+    lunch: "Lunch (12:00 – 2:00 PM)",
+    snacks: "Evening Snacks (4:00 – 5:30 PM)",
+    dinner: "Dinner (7:00 – 9:00 PM)",
+  };
+
+  // ── Path 1: Idempotent Absolute Sync via totalIntent ───────────────────────
+  if (totalIntent !== null && typeof totalIntent !== "undefined") {
+    const finalIntent = Math.max(0, Number(Number(totalIntent).toFixed(2)) || 0);
+    const target = withBuffer(finalIntent, DEFAULT_SAFETY_BUFFER_PCT);
+
+    const updateDoc = {
+      hostelId: hid,
+      messId: mid,
+      date: today,
+      slotId: targetSlot,
+      slotLabel: slotLabels[targetSlot] || `${targetSlot.toUpperCase()} Slot`,
+      totalStudentIntent: finalIntent,
+      recommendedTarget: target,
+      bufferPct: DEFAULT_SAFETY_BUFFER_PCT,
+      source: "STUDENT_DEMAND",
+      updatedAt: new Date(),
+    };
+
+    // When running inside a transaction, use upsert: false and verify the document was matched.
+    // An un-pre-initialized slot inside a transaction must abort rather than silently inserting.
+    if (session) {
+      const updateResult = await db.collection(KITCHEN_DEMAND_COLLECTION).updateOne(
+        query,
+        {
+          $set: updateDoc,
+        },
+        updateOptions
+      );
+
+      if (!updateResult.matchedCount) {
+        throw new Error(
+          `Kitchen aggregate demand record not found for hostel ${hostelId}, mess ${messId}, date ${today}, slot ${targetSlot}. Pre-initialization via ensureKitchenDemandRecord is required before starting the transaction.`
+        );
+      }
+
+      const saved = await db.collection(KITCHEN_DEMAND_COLLECTION).findOne(query, findOptions);
+      return sanitizeDoc(saved);
+    }
+
+    // Standalone (no transaction): safe retry on duplicate key
+    const maxRetries = 2;
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        await db.collection(KITCHEN_DEMAND_COLLECTION).updateOne(
+          query,
+          {
+            $set: updateDoc,
+            $setOnInsert: { createdAt: new Date() },
+          },
+          updateOptions
+        );
+        break;
+      } catch (err) {
+        const isDupKey =
+          err?.code === 11000 ||
+          err?.message?.includes("E11000") ||
+          err?.codeName === "DuplicateKey";
+        if (isDupKey && attempt < maxRetries) {
+          continue;
+        }
+        throw err;
+      }
+    }
+
+    const saved = await db.collection(KITCHEN_DEMAND_COLLECTION).findOne(query, findOptions);
+    return sanitizeDoc(saved || updateDoc);
+  }
+
+  // ── Path 2: Atomic Delta Update via Aggregation Pipeline ───────────────────
+  const delta = Number(portionDelta) || 0;
+
+  // Aggregation pipeline update: executes atomically inside the database engine.
+  // Handles:
+  // - Baseline replacement: if $source == "BASELINE", replaces intent with max(0, delta)
+  // - Normal increment/decrement: if $source != "BASELINE", adds delta to current total
+  // - Floor at 0: $max prevents negative numbers under heavy cancellations
+  // - Target sync: calculates recommendedTarget = ceil(totalStudentIntent * 1.08)
+  // Handles backward compatibility:
+  // - Replaces baseline when source is explicitly "BASELINE" OR when a legacy baseline document
+  //   lacks a source field (not marked as STUDENT_DEMAND).
+  const isBaselineExpr = {
+    $or: [
+      { $eq: ["$source", "BASELINE"] },
+      {
+        $and: [
+          { $ne: ["$source", "STUDENT_DEMAND"] },
+          {
+            $or: [
+              { $eq: [{ $ifNull: ["$source", null] }, null] },
+              { $in: ["$totalStudentIntent", [185, 420, 160, 310]] },
+            ],
+          },
+        ],
+      },
+    ],
+  };
+
+  const pipeline = [
+    {
+      $set: {
+        totalStudentIntent: {
+          $cond: {
+            if: isBaselineExpr,
+            then: { $max: [0, delta] },
+            else: {
+              $max: [
+                0,
+                {
+                  $round: [
+                    { $add: [{ $ifNull: ["$totalStudentIntent", 0] }, delta] },
+                    2,
+                  ],
+                },
+              ],
+            },
+          },
+        },
+        source: "STUDENT_DEMAND",
+        bufferPct: DEFAULT_SAFETY_BUFFER_PCT,
+        slotLabel: {
+          $ifNull: [
+            "$slotLabel",
+            slotLabels[targetSlot] || `${targetSlot.toUpperCase()} Slot`,
+          ],
+        },
+        updatedAt: "$NOW",
+      },
+    },
+    {
+      $set: {
+        recommendedTarget: {
+          $ceil: { $multiply: ["$totalStudentIntent", 1 + DEFAULT_SAFETY_BUFFER_PCT / 100] },
+        },
+      },
+    },
+  ];
+
+  // When running inside a transaction, use upsert: false and verify the document was matched.
+  // An un-pre-initialized slot inside a transaction must abort rather than silently inserting.
+  if (session) {
+    const updateResult = await db.collection(KITCHEN_DEMAND_COLLECTION).updateOne(
+      query,
+      pipeline,
+      updateOptions
+    );
+
+    if (!updateResult.matchedCount) {
+      throw new Error(
+        `Kitchen aggregate demand record not found for hostel ${hostelId}, mess ${messId}, date ${today}, slot ${targetSlot}. Pre-initialization via ensureKitchenDemandRecord is required before starting the transaction.`
+      );
+    }
+
+    const saved = await db.collection(KITCHEN_DEMAND_COLLECTION).findOne(query, findOptions);
+    return sanitizeDoc(saved);
+  }
+
+  // Standalone (no transaction): safe retry on concurrent duplicate key race
+  const maxRetries = 2;
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      await db.collection(KITCHEN_DEMAND_COLLECTION).updateOne(
+        query,
+        pipeline,
+        updateOptions
+      );
+      break;
+    } catch (err) {
+      const isDupKey =
+        err?.code === 11000 ||
+        err?.message?.includes("E11000") ||
+        err?.codeName === "DuplicateKey";
+      if (isDupKey && attempt < maxRetries) {
+        continue;
+      }
+      throw err;
+    }
+  }
+
+  const saved = await db.collection(KITCHEN_DEMAND_COLLECTION).findOne(query, findOptions);
+  return sanitizeDoc(saved);
 }
 
 // ─── ANALYTICS AGGREGATION ────────────────────────────────────────────────────
