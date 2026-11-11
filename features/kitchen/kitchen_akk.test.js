@@ -44,6 +44,7 @@ const {
   createWasteRecord,
   getDemandData,
   syncStudentDemandAggregate,
+  ensureKitchenDemandRecord,
   ensureKitchenIndexes,
   resetKitchenIndexesCache,
   getKitchenAnalytics,
@@ -709,6 +710,71 @@ describe("Kitchen Module: Database Persistence & Multi-Tenant Isolation", () => 
     expect(createIndexSpy).not.toHaveBeenCalled();
 
     createIndexSpy.mockRestore();
+  });
+
+  it("propagates errors directly out of syncStudentDemandAggregate when session is provided instead of retrying on aborted session", async () => {
+    const mockSession = { id: "session-abort-test" };
+    const demandCol = mockDb.collection(KITCHEN_DEMAND_COLLECTION);
+    let attempts = 0;
+    const originalUpdateOne = demandCol.updateOne;
+
+    demandCol.updateOne = vi.fn(async (...args) => {
+      attempts++;
+      const dupError = new Error("E11000 duplicate key error in transaction");
+      dupError.code = 11000;
+      dupError.codeName = "DuplicateKey";
+      throw dupError;
+    });
+
+    // When session is supplied, the error must immediately propagate out to the outer
+    // transaction boundary (e.g. session.withTransaction()) rather than attempting
+    // unsafe retries on an aborted MongoDB session.
+    await expect(
+      syncStudentDemandAggregate(
+        {
+          hostelId: "hostel-tx-error",
+          messId: "mess-tx-error",
+          date: "2026-11-10",
+          slotId: "dinner",
+          portionDelta: 1.0,
+        },
+        { session: mockSession }
+      )
+    ).rejects.toThrow("E11000 duplicate key error in transaction");
+
+    // Verify only 1 attempt was made inside the function (no internal retry loop on aborted session)
+    expect(attempts).toBe(1);
+
+    demandCol.updateOne = originalUpdateOne;
+  });
+
+  it("pre-initializes kitchen demand and indexes with ensureKitchenDemandRecord outside transactions", async () => {
+    const initialized = await ensureKitchenDemandRecord({
+      hostelId: "hostel-preinit",
+      messId: "mess-preinit",
+      date: "2026-11-10",
+      slotId: "dinner",
+    });
+
+    expect(initialized).toBeDefined();
+    expect(initialized.source).toBe("BASELINE");
+    expect(initialized.totalStudentIntent).toBe(310); // dinner baseline
+
+    // Subsequent transactional call now updates the existing document in-place
+    const mockSession = { id: "session-after-init" };
+    const updated = await syncStudentDemandAggregate(
+      {
+        hostelId: "hostel-preinit",
+        messId: "mess-preinit",
+        date: "2026-11-10",
+        slotId: "dinner",
+        portionDelta: 1.0,
+      },
+      { session: mockSession }
+    );
+
+    expect(updated.source).toBe("STUDENT_DEMAND");
+    expect(updated.totalStudentIntent).toBe(1.0);
   });
 
   it("handles concurrent baseline upsert races (E11000 duplicate key) safely without failing or losing demand", async () => {

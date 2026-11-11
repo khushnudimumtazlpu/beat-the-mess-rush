@@ -478,6 +478,8 @@ export function getBaselineDemand(slotId, bufferPct = DEFAULT_SAFETY_BUFFER_PCT)
 
 /**
  * Get meal demand data for planning, comparing with past consumption.
+ * When called inside a transaction (options.session present), it performs a read-only query
+ * to avoid duplicate-key write races on the unique aggregate index inside the transaction.
  */
 export async function getDemandData({ hostelId, messId, date, slotId }, options = {}) {
   const db = await getMongoDb();
@@ -489,8 +491,6 @@ export async function getDemandData({ hostelId, messId, date, slotId }, options 
   }
 
   const findOptions = session ? { session } : {};
-  const updateOptions = session ? { session, upsert: true } : { upsert: true };
-
   const today = date || new Date().toISOString().split("T")[0];
   const targetSlot = (slotId || "lunch").toLowerCase();
 
@@ -512,7 +512,7 @@ export async function getDemandData({ hostelId, messId, date, slotId }, options 
     return sanitizeDoc(existing);
   }
 
-  // If no custom demand record exists yet for today, persist the baseline demand
+  // If no custom demand record exists yet for today, prepare baseline demand
   const baseline = getBaselineDemand(targetSlot);
   const newDemandDoc = {
     hostelId: isValidObjectIdHex(hostelId) ? toObjectId(hostelId, "Hostel ID") : String(hostelId),
@@ -524,6 +524,12 @@ export async function getDemandData({ hostelId, messId, date, slotId }, options 
     updatedAt: new Date(),
   };
 
+  // Inside a transaction (session present): read-only semantics to prevent transaction aborts
+  if (session) {
+    return sanitizeDoc(newDemandDoc);
+  }
+
+  // Outside a transaction: safe upsert with duplicate-key race catch
   try {
     await db.collection(KITCHEN_DEMAND_COLLECTION).updateOne(
       {
@@ -533,7 +539,7 @@ export async function getDemandData({ hostelId, messId, date, slotId }, options 
         slotId: targetSlot,
       },
       { $setOnInsert: newDemandDoc },
-      updateOptions
+      { upsert: true }
     );
   } catch (err) {
     const isDupKey =
@@ -545,14 +551,25 @@ export async function getDemandData({ hostelId, messId, date, slotId }, options 
     }
   }
 
-  const saved = await db.collection(KITCHEN_DEMAND_COLLECTION).findOne({
-    hostelId: newDemandDoc.hostelId,
-    messId: newDemandDoc.messId,
-    date: today,
-    slotId: targetSlot,
-  }, findOptions);
-
+  const saved = await db.collection(KITCHEN_DEMAND_COLLECTION).findOne(query);
   return sanitizeDoc(saved || newDemandDoc);
+}
+
+/**
+ * Pre-initializes a kitchen demand record and ensures kitchen indexes outside
+ * of any transaction.
+ *
+ * Calling this before entering a multi-document Student transaction guarantees:
+ * 1. Required unique indexes exist on kitchen_demands.
+ * 2. An aggregate document already exists for (hostelId, messId, date, slotId).
+ * 3. Subsequent syncStudentDemandAggregate() calls inside the transaction only perform
+ *    in-place updates on existing documents, completely eliminating E11000 duplicate-key
+ *    upsert races from ever occurring inside the transaction.
+ */
+export async function ensureKitchenDemandRecord({ hostelId, messId, date, slotId }) {
+  const db = await getMongoDb();
+  await ensureKitchenIndexes(db);
+  return getDemandData({ hostelId, messId, date, slotId });
 }
 
 /**
@@ -566,7 +583,9 @@ export async function getDemandData({ hostelId, messId, date, slotId }, options 
  *    atomic operation inside the database engine without read-modify-write lost updates.
  * 2. Absolute totalIntent path: For idempotent full-sync and retry operations.
  * 3. Never negative: Floor at 0 enforced atomically ($max: [0, ...]).
- * 4. Transaction session: Supports options.session and propagates it to every DB operation.
+ * 4. Transaction session: Supports options.session. When running inside a transaction, any
+ *    transient errors propagate to the outer transaction boundary (e.g. session.withTransaction())
+ *    rather than attempting unsafe retries on an aborted session.
  */
 export async function syncStudentDemandAggregate(
   {
@@ -633,6 +652,22 @@ export async function syncStudentDemandAggregate(
       updatedAt: new Date(),
     };
 
+    // When running inside a transaction, do NOT perform internal retries on the aborted session.
+    // Propagate write errors to the outer transaction boundary (e.g. session.withTransaction()).
+    if (session) {
+      await db.collection(KITCHEN_DEMAND_COLLECTION).updateOne(
+        query,
+        {
+          $set: updateDoc,
+          $setOnInsert: { createdAt: new Date() },
+        },
+        updateOptions
+      );
+      const saved = await db.collection(KITCHEN_DEMAND_COLLECTION).findOne(query, findOptions);
+      return sanitizeDoc(saved || updateDoc);
+    }
+
+    // Standalone (no transaction): safe retry on duplicate key
     const maxRetries = 2;
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       try {
@@ -710,10 +745,19 @@ export async function syncStudentDemandAggregate(
     },
   ];
 
-  // Handle concurrent baseline upsert race:
-  // If getDemandData() or another concurrent process inserts simultaneously and triggers an E11000
-  // duplicate key error during the upsert, retry the pipeline update. On retry, the document already
-  // exists in the unique collection, so the pipeline update succeeds atomically without an insert race.
+  // When running inside a transaction, do NOT perform internal retries on the aborted session.
+  // Propagate write errors to the outer transaction boundary (e.g. session.withTransaction()).
+  if (session) {
+    await db.collection(KITCHEN_DEMAND_COLLECTION).updateOne(
+      query,
+      pipeline,
+      updateOptions
+    );
+    const saved = await db.collection(KITCHEN_DEMAND_COLLECTION).findOne(query, findOptions);
+    return sanitizeDoc(saved);
+  }
+
+  // Standalone (no transaction): safe retry on concurrent duplicate key race
   const maxRetries = 2;
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
