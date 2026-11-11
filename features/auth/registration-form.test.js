@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { loadActiveHostels, submitRegistrationRequest } from "./registration-form.jsx";
+import { loadActiveHostels, registrationSuccessDetails, submitRegistrationRequest } from "./registration-form.jsx";
 
 const validValues = {
   name: "  Campus Member  ",
@@ -10,6 +10,16 @@ const validValues = {
 };
 
 describe("registration form request workflow", () => {
+  it("explains that duplicate emails do not convert existing accounts", () => {
+    const studentMessage = registrationSuccessDetails("STUDENT");
+    const messAdminMessage = registrationSuccessDetails("MESS_ADMIN");
+
+    expect(studentMessage).toContain("If this email is already registered, its existing account is not changed.");
+    expect(studentMessage).toContain("Student request remains pending");
+    expect(messAdminMessage).toContain("If this email is already registered, its existing account is not changed.");
+    expect(messAdminMessage).toContain("Super Admin approves and assigns a Hostel");
+  });
+
   it("loads available Hostel options using the public endpoint response contract", async () => {
     const fetchRequest = vi.fn().mockResolvedValue({
       ok: true,
