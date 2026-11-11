@@ -456,6 +456,7 @@ export function getBaselineDemand(slotId, bufferPct = DEFAULT_SAFETY_BUFFER_PCT)
 
   const selected = templates[slotId] || templates.lunch;
   return {
+    source: "BASELINE",
     ...selected,
     recommendedTarget: withBuffer(selected.totalStudentIntent, bufferPct),
   };
@@ -464,9 +465,13 @@ export function getBaselineDemand(slotId, bufferPct = DEFAULT_SAFETY_BUFFER_PCT)
 /**
  * Get meal demand data for planning, comparing with past consumption.
  */
-export async function getDemandData({ hostelId, messId, date, slotId }) {
+export async function getDemandData({ hostelId, messId, date, slotId }, options = {}) {
   const db = await getMongoDb();
   await ensureKitchenIndexes(db);
+
+  const session = options?.session;
+  const findOptions = session ? { session } : {};
+  const updateOptions = session ? { session, upsert: true } : { upsert: true };
 
   const today = date || new Date().toISOString().split("T")[0];
   const targetSlot = (slotId || "lunch").toLowerCase();
@@ -483,7 +488,7 @@ export async function getDemandData({ hostelId, messId, date, slotId }) {
 
   const existing = await db
     .collection(KITCHEN_DEMAND_COLLECTION)
-    .findOne(query);
+    .findOne(query, findOptions);
 
   if (existing) {
     return sanitizeDoc(existing);
@@ -495,6 +500,7 @@ export async function getDemandData({ hostelId, messId, date, slotId }) {
     hostelId: isValidObjectIdHex(hostelId) ? toObjectId(hostelId, "Hostel ID") : String(hostelId),
     messId: isValidObjectIdHex(messId) ? toObjectId(messId, "Mess ID") : String(messId),
     date: today,
+    source: "BASELINE",
     ...baseline,
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -509,7 +515,7 @@ export async function getDemandData({ hostelId, messId, date, slotId }) {
         slotId: targetSlot,
       },
       { $setOnInsert: newDemandDoc },
-      { upsert: true }
+      updateOptions
     );
   } catch {
     // Ignore duplicate key if concurrent
@@ -520,9 +526,153 @@ export async function getDemandData({ hostelId, messId, date, slotId }) {
     messId: newDemandDoc.messId,
     date: today,
     slotId: targetSlot,
-  });
+  }, findOptions);
 
   return sanitizeDoc(saved || newDemandDoc);
+}
+
+/**
+ * Synchronize aggregate meal demand from student demand submissions.
+ * Replaces illustrative baseline records on the first real student submission,
+ * and maintains totalStudentIntent and recommendedTarget atomically.
+ *
+ * Concurrency & Transaction Guarantees:
+ * 1. Truly atomic database update: Uses an Aggregation Pipeline in updateOne() so increments,
+ *    decrements, baseline replacement, and recommendedTarget recalculation occur in a single
+ *    atomic operation inside the database engine without read-modify-write lost updates.
+ * 2. Absolute totalIntent path: For idempotent full-sync and retry operations.
+ * 3. Never negative: Floor at 0 enforced atomically ($max: [0, ...]).
+ * 4. Transaction session: Supports options.session and propagates it to every DB operation.
+ */
+export async function syncStudentDemandAggregate(
+  {
+    hostelId,
+    messId,
+    date,
+    slotId,
+    portionDelta = null,
+    totalIntent = null,
+  },
+  options = {}
+) {
+  const db = await getMongoDb();
+  await ensureKitchenIndexes(db);
+
+  const session = options?.session;
+  const findOptions = session ? { session } : {};
+  const updateOptions = session ? { session, upsert: true } : { upsert: true };
+
+  const today = date || new Date().toISOString().split("T")[0];
+  const targetSlot = (slotId || "lunch").toLowerCase();
+
+  if (!hostelId) throw new Error("Hostel ID is required.");
+  if (!messId) throw new Error("Mess ID is required.");
+
+  const hid = isValidObjectIdHex(hostelId) ? toObjectId(hostelId, "Hostel ID") : String(hostelId);
+  const mid = isValidObjectIdHex(messId) ? toObjectId(messId, "Mess ID") : String(messId);
+
+  const query = {
+    slotId: targetSlot,
+    date: today,
+    hostelId: hid,
+    messId: mid,
+  };
+
+  const slotLabels = {
+    breakfast: "Breakfast (7:30 – 9:30 AM)",
+    lunch: "Lunch (12:00 – 2:00 PM)",
+    snacks: "Evening Snacks (4:00 – 5:30 PM)",
+    dinner: "Dinner (7:00 – 9:00 PM)",
+  };
+
+  // ── Path 1: Idempotent Absolute Sync via totalIntent ───────────────────────
+  if (totalIntent !== null && typeof totalIntent !== "undefined") {
+    const finalIntent = Math.max(0, Number(Number(totalIntent).toFixed(2)) || 0);
+    const target = withBuffer(finalIntent, DEFAULT_SAFETY_BUFFER_PCT);
+
+    const updateDoc = {
+      hostelId: hid,
+      messId: mid,
+      date: today,
+      slotId: targetSlot,
+      slotLabel: slotLabels[targetSlot] || `${targetSlot.toUpperCase()} Slot`,
+      totalStudentIntent: finalIntent,
+      recommendedTarget: target,
+      bufferPct: DEFAULT_SAFETY_BUFFER_PCT,
+      source: "STUDENT_DEMAND",
+      updatedAt: new Date(),
+    };
+
+    await db.collection(KITCHEN_DEMAND_COLLECTION).updateOne(
+      query,
+      {
+        $set: updateDoc,
+        $setOnInsert: { createdAt: new Date() },
+      },
+      updateOptions
+    );
+
+    const saved = await db.collection(KITCHEN_DEMAND_COLLECTION).findOne(query, findOptions);
+    return sanitizeDoc(saved || updateDoc);
+  }
+
+  // ── Path 2: Atomic Delta Update via Aggregation Pipeline ───────────────────
+  const delta = Number(portionDelta) || 0;
+
+  // Aggregation pipeline update: executes atomically inside the database engine.
+  // Handles:
+  // - Baseline replacement: if $source == "BASELINE", replaces intent with max(0, delta)
+  // - Normal increment/decrement: if $source != "BASELINE", adds delta to current total
+  // - Floor at 0: $max prevents negative numbers under heavy cancellations
+  // - Target sync: calculates recommendedTarget = ceil(totalStudentIntent * 1.08)
+  const pipeline = [
+    {
+      $set: {
+        totalStudentIntent: {
+          $cond: {
+            if: { $eq: ["$source", "BASELINE"] },
+            then: { $max: [0, delta] },
+            else: {
+              $max: [
+                0,
+                {
+                  $round: [
+                    { $add: [{ $ifNull: ["$totalStudentIntent", 0] }, delta] },
+                    2,
+                  ],
+                },
+              ],
+            },
+          },
+        },
+        source: "STUDENT_DEMAND",
+        bufferPct: DEFAULT_SAFETY_BUFFER_PCT,
+        slotLabel: {
+          $ifNull: [
+            "$slotLabel",
+            slotLabels[targetSlot] || `${targetSlot.toUpperCase()} Slot`,
+          ],
+        },
+        updatedAt: "$NOW",
+      },
+    },
+    {
+      $set: {
+        recommendedTarget: {
+          $ceil: { $multiply: ["$totalStudentIntent", 1 + DEFAULT_SAFETY_BUFFER_PCT / 100] },
+        },
+      },
+    },
+  ];
+
+  await db.collection(KITCHEN_DEMAND_COLLECTION).updateOne(
+    query,
+    pipeline,
+    updateOptions
+  );
+
+  const saved = await db.collection(KITCHEN_DEMAND_COLLECTION).findOne(query, findOptions);
+  return sanitizeDoc(saved);
 }
 
 // ─── ANALYTICS AGGREGATION ────────────────────────────────────────────────────

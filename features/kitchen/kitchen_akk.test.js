@@ -43,6 +43,7 @@ const {
   getWasteRecords,
   createWasteRecord,
   getDemandData,
+  syncStudentDemandAggregate,
   getKitchenAnalytics,
   KITCHEN_PRODUCTION_COLLECTION,
   KITCHEN_WASTE_COLLECTION,
@@ -61,6 +62,10 @@ function createMockDb() {
 
   function matchQuery(doc, query = {}) {
     for (const [key, val] of Object.entries(query)) {
+      if (key === "_id") {
+        if (doc._id?.toString() !== val?.toString()) return false;
+        continue;
+      }
       if (val && typeof val === "object" && "$gte" in val) {
         if (doc[key] < val.$gte) return false;
       }
@@ -77,12 +82,62 @@ function createMockDb() {
     return true;
   }
 
+  function evalExpr(expr, doc) {
+    if (expr === "$NOW") return new Date();
+    if (typeof expr === "string" && expr.startsWith("$")) {
+      return doc[expr.slice(1)];
+    }
+    if (typeof expr === "number" || typeof expr === "string" || typeof expr === "boolean") {
+      return expr;
+    }
+    if (typeof expr !== "object" || expr === null) return expr;
+
+    if ("$cond" in expr) {
+      const { if: condIf, then: condThen, else: condElse } = expr.$cond;
+      const condResult = evalExpr(condIf, doc);
+      return condResult ? evalExpr(condThen, doc) : evalExpr(condElse, doc);
+    }
+    if ("$eq" in expr) {
+      const [a, b] = expr.$eq;
+      return evalExpr(a, doc) === evalExpr(b, doc);
+    }
+    if ("$max" in expr) {
+      const vals = expr.$max.map((x) => evalExpr(x, doc));
+      return Math.max(...vals);
+    }
+    if ("$round" in expr) {
+      const [val, decimals] = expr.$round;
+      const num = evalExpr(val, doc);
+      return Number(Number(num).toFixed(decimals));
+    }
+    if ("$add" in expr) {
+      const vals = expr.$add.map((x) => Number(evalExpr(x, doc)) || 0);
+      return vals.reduce((sum, v) => sum + v, 0);
+    }
+    if ("$ifNull" in expr) {
+      const [val, fallback] = expr.$ifNull;
+      const evaluated = evalExpr(val, doc);
+      return evaluated !== undefined && evaluated !== null ? evaluated : evalExpr(fallback, doc);
+    }
+    if ("$ceil" in expr) {
+      return Math.ceil(evalExpr(expr.$ceil, doc));
+    }
+    if ("$multiply" in expr) {
+      const [a, b] = expr.$multiply;
+      return evalExpr(a, doc) * evalExpr(b, doc);
+    }
+    return expr;
+  }
+
+  const collectionInstances = {};
+
   return {
     collection(name) {
+      if (collectionInstances[name]) return collectionInstances[name];
       if (!collections[name]) collections[name] = [];
       const list = collections[name];
 
-      return {
+      const instance = {
         createIndex: vi.fn(async () => name),
         find(query = {}) {
           const matched = list.filter((item) => matchQuery(item, query));
@@ -99,21 +154,52 @@ function createMockDb() {
             toArray: async () => matched,
           };
         },
-        async findOne(query = {}) {
+        findOne: vi.fn(async (query = {}, options = {}) => {
           return list.find((item) => matchQuery(item, query)) || null;
-        },
-        async insertOne(doc) {
+        }),
+        insertOne: vi.fn(async (doc, options = {}) => {
           const inserted = { _id: new ObjectId(), ...doc };
           list.push(inserted);
           return { insertedId: inserted._id };
-        },
-        async updateOne(query, update = {}, options = {}) {
+        }),
+        updateOne: vi.fn(async (query, update = {}, options = {}) => {
           const existingIndex = list.findIndex((item) => matchQuery(item, query));
+
+          // Pipeline update support: update is an Array of stages [ { $set: ... }, ... ]
+          if (Array.isArray(update)) {
+            if (existingIndex >= 0) {
+              const doc = { ...list[existingIndex] };
+              for (const stage of update) {
+                if (stage.$set) {
+                  for (const [k, v] of Object.entries(stage.$set)) {
+                    doc[k] = evalExpr(v, doc);
+                  }
+                }
+              }
+              list[existingIndex] = doc;
+              return { matchedCount: 1, modifiedCount: 1 };
+            }
+            if (options.upsert) {
+              const doc = { _id: new ObjectId(), ...query };
+              for (const stage of update) {
+                if (stage.$set) {
+                  for (const [k, v] of Object.entries(stage.$set)) {
+                    doc[k] = evalExpr(v, doc);
+                  }
+                }
+              }
+              list.push(doc);
+              return { matchedCount: 0, upsertedCount: 1, upsertedId: doc._id };
+            }
+            return { matchedCount: 0, modifiedCount: 0 };
+          }
+
+          // Standard object update support
           if (existingIndex >= 0) {
             if (update.$set) {
               list[existingIndex] = { ...list[existingIndex], ...update.$set };
             }
-            return { modifiedCount: 1 };
+            return { matchedCount: 1, modifiedCount: 1 };
           }
           if (options.upsert) {
             const newDoc = {
@@ -123,11 +209,14 @@ function createMockDb() {
               ...(update.$set || {}),
             };
             list.push(newDoc);
-            return { upsertedCount: 1, upsertedId: newDoc._id };
+            return { matchedCount: 0, upsertedCount: 1, upsertedId: newDoc._id };
           }
-          return { modifiedCount: 0 };
-        },
+          return { matchedCount: 0, modifiedCount: 0 };
+        }),
       };
+
+      collectionInstances[name] = instance;
+      return instance;
     },
   };
 }
@@ -433,6 +522,198 @@ describe("Kitchen Module: Database Persistence & Multi-Tenant Isolation", () => 
     expect(demandMessA.messId).toBe("mess-A");
     expect(demandMessB.messId).toBe("mess-B");
     expect(demandMessA.id).not.toBe(demandMessB.id);
+  });
+
+  it("seeds baseline demand with source: BASELINE and replaces with STUDENT_DEMAND on first student submission", async () => {
+    // 1. Initial fetch without student opt-in returns baseline demand tagged with source: BASELINE
+    const baseline = await getDemandData({
+      hostelId: "hostel-sync",
+      messId: "mess-sync",
+      date: "2026-11-10",
+      slotId: "dinner",
+    });
+    expect(baseline.source).toBe("BASELINE");
+    expect(baseline.totalStudentIntent).toBe(310); // Illustrative template baseline
+
+    // 2. First real student submits a Large portion (1.5) -> Replaces baseline entirely
+    const syncedFirst = await syncStudentDemandAggregate({
+      hostelId: "hostel-sync",
+      messId: "mess-sync",
+      date: "2026-11-10",
+      slotId: "dinner",
+      portionDelta: 1.5,
+    });
+
+    expect(syncedFirst.source).toBe("STUDENT_DEMAND");
+    expect(syncedFirst.totalStudentIntent).toBe(1.5);
+    expect(syncedFirst.recommendedTarget).toBe(2); // Math.ceil(1.5 * 1.08) = 2
+
+    // 3. Second student submits a Regular portion (1.0) -> Increments total to 2.5
+    const syncedSecond = await syncStudentDemandAggregate({
+      hostelId: "hostel-sync",
+      messId: "mess-sync",
+      date: "2026-11-10",
+      slotId: "dinner",
+      portionDelta: 1.0,
+    });
+
+    expect(syncedSecond.totalStudentIntent).toBe(2.5);
+    expect(syncedSecond.recommendedTarget).toBe(3); // Math.ceil(2.5 * 1.08) = 3
+
+    // 4. Portion preference change (Regular to Large: delta +0.5) -> 3.0
+    const syncedChange = await syncStudentDemandAggregate({
+      hostelId: "hostel-sync",
+      messId: "mess-sync",
+      date: "2026-11-10",
+      slotId: "dinner",
+      portionDelta: 0.5,
+    });
+    expect(syncedChange.totalStudentIntent).toBe(3.0);
+    expect(syncedChange.recommendedTarget).toBe(4); // Math.ceil(3.0 * 1.08) = 4
+
+    // 5. Student cancels Large portion (-1.5) -> Decrements to 1.5
+    const syncedCancel = await syncStudentDemandAggregate({
+      hostelId: "hostel-sync",
+      messId: "mess-sync",
+      date: "2026-11-10",
+      slotId: "dinner",
+      portionDelta: -1.5,
+    });
+
+    expect(syncedCancel.totalStudentIntent).toBe(1.5);
+    expect(syncedCancel.recommendedTarget).toBe(2); // Math.ceil(1.5 * 1.08) = 2
+
+    // 6. Excessive cancellation -> Floored at 0 (never negative)
+    const syncedFloor = await syncStudentDemandAggregate({
+      hostelId: "hostel-sync",
+      messId: "mess-sync",
+      date: "2026-11-10",
+      slotId: "dinner",
+      portionDelta: -100,
+    });
+    expect(syncedFloor.totalStudentIntent).toBe(0);
+    expect(syncedFloor.recommendedTarget).toBe(0);
+  });
+
+  it("supports idempotent synchronization with absolute totalIntent", async () => {
+    // Calling with explicit totalIntent sets exact value idempotently
+    const res1 = await syncStudentDemandAggregate({
+      hostelId: "hostel-idempotent",
+      messId: "mess-idempotent",
+      date: "2026-11-10",
+      slotId: "lunch",
+      totalIntent: 142.5,
+    });
+
+    expect(res1.source).toBe("STUDENT_DEMAND");
+    expect(res1.totalStudentIntent).toBe(142.5);
+    expect(res1.recommendedTarget).toBe(154); // Math.ceil(142.5 * 1.08) = 154
+
+    // Duplicate/retry call with same totalIntent produces identical result
+    const res2 = await syncStudentDemandAggregate({
+      hostelId: "hostel-idempotent",
+      messId: "mess-idempotent",
+      date: "2026-11-10",
+      slotId: "lunch",
+      totalIntent: 142.5,
+    });
+
+    expect(res2.totalStudentIntent).toBe(142.5);
+    expect(res2.recommendedTarget).toBe(154);
+  });
+
+  it("propagates transaction session to all database operations in syncStudentDemandAggregate and getDemandData", async () => {
+    const mockSession = { id: "mock-tx-session-token-xyz" };
+    const demandCollection = (await getMongoDbMock()).collection(KITCHEN_DEMAND_COLLECTION);
+    const findOneSpy = vi.spyOn(demandCollection, "findOne");
+    const updateOneSpy = vi.spyOn(demandCollection, "updateOne");
+
+    // 1. Test getDemandData with session
+    await getDemandData(
+      {
+        hostelId: "hostel-tx",
+        messId: "mess-tx",
+        date: "2026-11-10",
+        slotId: "breakfast",
+      },
+      { session: mockSession }
+    );
+
+    // Verify session passed to findOne in getDemandData
+    expect(findOneSpy).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ session: mockSession })
+    );
+
+    // 2. Test syncStudentDemandAggregate with session
+    await syncStudentDemandAggregate(
+      {
+        hostelId: "hostel-tx",
+        messId: "mess-tx",
+        date: "2026-11-10",
+        slotId: "breakfast",
+        portionDelta: 2.0,
+      },
+      { session: mockSession }
+    );
+
+    // Verify session passed to updateOne in syncStudentDemandAggregate
+    expect(updateOneSpy).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      expect.objectContaining({ session: mockSession })
+    );
+
+    findOneSpy.mockRestore();
+    updateOneSpy.mockRestore();
+  });
+
+  it("handles concurrent student demand increments safely without baseline regression", async () => {
+    // Seed baseline
+    await getDemandData({
+      hostelId: "hostel-concurrent",
+      messId: "mess-concurrent",
+      date: "2026-11-10",
+      slotId: "lunch",
+    });
+
+    // Fire 3 simultaneous student demands
+    await Promise.all([
+      syncStudentDemandAggregate({
+        hostelId: "hostel-concurrent",
+        messId: "mess-concurrent",
+        date: "2026-11-10",
+        slotId: "lunch",
+        portionDelta: 1.0,
+      }),
+      syncStudentDemandAggregate({
+        hostelId: "hostel-concurrent",
+        messId: "mess-concurrent",
+        date: "2026-11-10",
+        slotId: "lunch",
+        portionDelta: 1.5,
+      }),
+      syncStudentDemandAggregate({
+        hostelId: "hostel-concurrent",
+        messId: "mess-concurrent",
+        date: "2026-11-10",
+        slotId: "lunch",
+        portionDelta: 1.0,
+      }),
+    ]);
+
+    // Final demand must be real student demand with source STUDENT_DEMAND (not baseline 420)
+    const finalRecord = await getDemandData({
+      hostelId: "hostel-concurrent",
+      messId: "mess-concurrent",
+      date: "2026-11-10",
+      slotId: "lunch",
+    });
+
+    expect(finalRecord.source).toBe("STUDENT_DEMAND");
+    expect(finalRecord.totalStudentIntent).toBeGreaterThanOrEqual(1.0);
+    expect(finalRecord.totalStudentIntent).toBeLessThanOrEqual(3.5);
+    expect(finalRecord.recommendedTarget).toBe(withBuffer(finalRecord.totalStudentIntent, 8));
   });
 });
 
