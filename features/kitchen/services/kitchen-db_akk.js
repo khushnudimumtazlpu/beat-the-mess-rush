@@ -465,9 +465,13 @@ export function getBaselineDemand(slotId, bufferPct = DEFAULT_SAFETY_BUFFER_PCT)
 /**
  * Get meal demand data for planning, comparing with past consumption.
  */
-export async function getDemandData({ hostelId, messId, date, slotId }) {
+export async function getDemandData({ hostelId, messId, date, slotId }, options = {}) {
   const db = await getMongoDb();
   await ensureKitchenIndexes(db);
+
+  const session = options?.session;
+  const findOptions = session ? { session } : {};
+  const updateOptions = session ? { session, upsert: true } : { upsert: true };
 
   const today = date || new Date().toISOString().split("T")[0];
   const targetSlot = (slotId || "lunch").toLowerCase();
@@ -484,7 +488,7 @@ export async function getDemandData({ hostelId, messId, date, slotId }) {
 
   const existing = await db
     .collection(KITCHEN_DEMAND_COLLECTION)
-    .findOne(query);
+    .findOne(query, findOptions);
 
   if (existing) {
     return sanitizeDoc(existing);
@@ -511,7 +515,7 @@ export async function getDemandData({ hostelId, messId, date, slotId }) {
         slotId: targetSlot,
       },
       { $setOnInsert: newDemandDoc },
-      { upsert: true }
+      updateOptions
     );
   } catch {
     // Ignore duplicate key if concurrent
@@ -522,7 +526,7 @@ export async function getDemandData({ hostelId, messId, date, slotId }) {
     messId: newDemandDoc.messId,
     date: today,
     slotId: targetSlot,
-  });
+  }, findOptions);
 
   return sanitizeDoc(saved || newDemandDoc);
 }
@@ -532,16 +536,23 @@ export async function getDemandData({ hostelId, messId, date, slotId }) {
  * Replaces illustrative baseline records on the first real student submission,
  * and maintains totalStudentIntent and recommendedTarget.
  */
-export async function syncStudentDemandAggregate({
-  hostelId,
-  messId,
-  date,
-  slotId,
-  portionDelta = null,
-  totalIntent = null,
-}) {
+export async function syncStudentDemandAggregate(
+  {
+    hostelId,
+    messId,
+    date,
+    slotId,
+    portionDelta = null,
+    totalIntent = null,
+  },
+  options = {}
+) {
   const db = await getMongoDb();
   await ensureKitchenIndexes(db);
+
+  const session = options?.session;
+  const findOptions = session ? { session } : {};
+  const updateOptions = session ? { session, upsert: true } : { upsert: true };
 
   const today = date || new Date().toISOString().split("T")[0];
   const targetSlot = (slotId || "lunch").toLowerCase();
@@ -559,23 +570,6 @@ export async function syncStudentDemandAggregate({
     messId: mid,
   };
 
-  const existing = await db.collection(KITCHEN_DEMAND_COLLECTION).findOne(query);
-
-  let newIntent;
-  if (totalIntent !== null && typeof totalIntent !== "undefined") {
-    newIntent = Math.max(0, Number(totalIntent) || 0);
-  } else {
-    const delta = Number(portionDelta) || 0;
-    if (!existing || existing.source === "BASELINE") {
-      // First real student demand replaces illustrative baseline
-      newIntent = Math.max(0, delta);
-    } else {
-      // Real student aggregate exists -> apply delta
-      newIntent = Math.max(0, Number((Number(existing.totalStudentIntent || 0) + delta).toFixed(2)));
-    }
-  }
-
-  const target = withBuffer(newIntent, 8);
   const slotLabels = {
     breakfast: "Breakfast (7:30 – 9:30 AM)",
     lunch: "Lunch (12:00 – 2:00 PM)",
@@ -583,30 +577,115 @@ export async function syncStudentDemandAggregate({
     dinner: "Dinner (7:00 – 9:00 PM)",
   };
 
+  // Path 1: Caller supplies absolute totalIntent (idempotent synchronization)
+  if (totalIntent !== null && typeof totalIntent !== "undefined") {
+    const finalIntent = Math.max(0, Number(Number(totalIntent).toFixed(2)) || 0);
+    const target = withBuffer(finalIntent, DEFAULT_SAFETY_BUFFER_PCT);
+
+    const updateDoc = {
+      hostelId: hid,
+      messId: mid,
+      date: today,
+      slotId: targetSlot,
+      slotLabel: slotLabels[targetSlot] || `${targetSlot.toUpperCase()} Slot`,
+      totalStudentIntent: finalIntent,
+      recommendedTarget: target,
+      bufferPct: DEFAULT_SAFETY_BUFFER_PCT,
+      source: "STUDENT_DEMAND",
+      updatedAt: new Date(),
+    };
+
+    await db.collection(KITCHEN_DEMAND_COLLECTION).updateOne(
+      query,
+      {
+        $set: updateDoc,
+        $setOnInsert: { createdAt: new Date() },
+      },
+      updateOptions
+    );
+
+    const saved = await db.collection(KITCHEN_DEMAND_COLLECTION).findOne(query, findOptions);
+    return sanitizeDoc(saved || updateDoc);
+  }
+
+  // Path 2: Incremental delta (portionDelta: e.g. +1.5, +1.0, -1.5, etc.)
+  const delta = Number(portionDelta) || 0;
+  const existing = await db.collection(KITCHEN_DEMAND_COLLECTION).findOne(query, findOptions);
+
+  if (!existing || existing.source === "BASELINE") {
+    const initialIntent = Math.max(0, Number(delta.toFixed(2)));
+    const target = withBuffer(initialIntent, DEFAULT_SAFETY_BUFFER_PCT);
+
+    if (existing && existing.source === "BASELINE") {
+      // Conditionally replace baseline record so baseline values are never mixed with real intent
+      const replaceResult = await db.collection(KITCHEN_DEMAND_COLLECTION).updateOne(
+        { ...query, source: "BASELINE" },
+        {
+          $set: {
+            totalStudentIntent: initialIntent,
+            recommendedTarget: target,
+            source: "STUDENT_DEMAND",
+            updatedAt: new Date(),
+          },
+        },
+        session ? { session } : {}
+      );
+
+      if (replaceResult.matchedCount > 0 || replaceResult.modifiedCount > 0) {
+        const saved = await db.collection(KITCHEN_DEMAND_COLLECTION).findOne(query, findOptions);
+        return sanitizeDoc(saved);
+      }
+      // If matchedCount === 0, another concurrent write already replaced BASELINE to STUDENT_DEMAND
+    } else {
+      // Document does not exist at all -> create new student demand record
+      const insertDoc = {
+        hostelId: hid,
+        messId: mid,
+        date: today,
+        slotId: targetSlot,
+        slotLabel: slotLabels[targetSlot] || `${targetSlot.toUpperCase()} Slot`,
+        totalStudentIntent: initialIntent,
+        recommendedTarget: target,
+        bufferPct: DEFAULT_SAFETY_BUFFER_PCT,
+        source: "STUDENT_DEMAND",
+        updatedAt: new Date(),
+      };
+
+      await db.collection(KITCHEN_DEMAND_COLLECTION).updateOne(
+        query,
+        {
+          $set: insertDoc,
+          $setOnInsert: { createdAt: new Date() },
+        },
+        updateOptions
+      );
+
+      const saved = await db.collection(KITCHEN_DEMAND_COLLECTION).findOne(query, findOptions);
+      return sanitizeDoc(saved || insertDoc);
+    }
+  }
+
+  // Path 3: Real student demand record already exists -> apply delta and floor at zero
+  const currentDoc = await db.collection(KITCHEN_DEMAND_COLLECTION).findOne(query, findOptions);
+  const currentIntent = Number(currentDoc?.totalStudentIntent || 0);
+  const newIntent = Math.max(0, Number((currentIntent + delta).toFixed(2)));
+  const target = withBuffer(newIntent, DEFAULT_SAFETY_BUFFER_PCT);
+
   const updateDoc = {
-    hostelId: hid,
-    messId: mid,
-    date: today,
-    slotId: targetSlot,
-    slotLabel: existing?.slotLabel || slotLabels[targetSlot] || `${targetSlot.toUpperCase()} Slot`,
     totalStudentIntent: newIntent,
     recommendedTarget: target,
-    bufferPct: 8,
     source: "STUDENT_DEMAND",
     updatedAt: new Date(),
   };
 
   await db.collection(KITCHEN_DEMAND_COLLECTION).updateOne(
     query,
-    {
-      $set: updateDoc,
-      $setOnInsert: { createdAt: new Date() },
-    },
-    { upsert: true }
+    { $set: updateDoc },
+    session ? { session } : {}
   );
 
-  const saved = await db.collection(KITCHEN_DEMAND_COLLECTION).findOne(query);
-  return sanitizeDoc(saved || updateDoc);
+  const saved = await db.collection(KITCHEN_DEMAND_COLLECTION).findOne(query, findOptions);
+  return sanitizeDoc(saved || { ...currentDoc, ...updateDoc });
 }
 
 // ─── ANALYTICS AGGREGATION ────────────────────────────────────────────────────
