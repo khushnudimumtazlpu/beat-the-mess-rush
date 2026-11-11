@@ -456,6 +456,7 @@ export function getBaselineDemand(slotId, bufferPct = DEFAULT_SAFETY_BUFFER_PCT)
 
   const selected = templates[slotId] || templates.lunch;
   return {
+    source: "BASELINE",
     ...selected,
     recommendedTarget: withBuffer(selected.totalStudentIntent, bufferPct),
   };
@@ -495,6 +496,7 @@ export async function getDemandData({ hostelId, messId, date, slotId }) {
     hostelId: isValidObjectIdHex(hostelId) ? toObjectId(hostelId, "Hostel ID") : String(hostelId),
     messId: isValidObjectIdHex(messId) ? toObjectId(messId, "Mess ID") : String(messId),
     date: today,
+    source: "BASELINE",
     ...baseline,
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -523,6 +525,88 @@ export async function getDemandData({ hostelId, messId, date, slotId }) {
   });
 
   return sanitizeDoc(saved || newDemandDoc);
+}
+
+/**
+ * Synchronize aggregate meal demand from student demand submissions.
+ * Replaces illustrative baseline records on the first real student submission,
+ * and maintains totalStudentIntent and recommendedTarget.
+ */
+export async function syncStudentDemandAggregate({
+  hostelId,
+  messId,
+  date,
+  slotId,
+  portionDelta = null,
+  totalIntent = null,
+}) {
+  const db = await getMongoDb();
+  await ensureKitchenIndexes(db);
+
+  const today = date || new Date().toISOString().split("T")[0];
+  const targetSlot = (slotId || "lunch").toLowerCase();
+
+  if (!hostelId) throw new Error("Hostel ID is required.");
+  if (!messId) throw new Error("Mess ID is required.");
+
+  const hid = isValidObjectIdHex(hostelId) ? toObjectId(hostelId, "Hostel ID") : String(hostelId);
+  const mid = isValidObjectIdHex(messId) ? toObjectId(messId, "Mess ID") : String(messId);
+
+  const query = {
+    slotId: targetSlot,
+    date: today,
+    hostelId: hid,
+    messId: mid,
+  };
+
+  const existing = await db.collection(KITCHEN_DEMAND_COLLECTION).findOne(query);
+
+  let newIntent;
+  if (totalIntent !== null && typeof totalIntent !== "undefined") {
+    newIntent = Math.max(0, Number(totalIntent) || 0);
+  } else {
+    const delta = Number(portionDelta) || 0;
+    if (!existing || existing.source === "BASELINE") {
+      // First real student demand replaces illustrative baseline
+      newIntent = Math.max(0, delta);
+    } else {
+      // Real student aggregate exists -> apply delta
+      newIntent = Math.max(0, Number((Number(existing.totalStudentIntent || 0) + delta).toFixed(2)));
+    }
+  }
+
+  const target = withBuffer(newIntent, 8);
+  const slotLabels = {
+    breakfast: "Breakfast (7:30 – 9:30 AM)",
+    lunch: "Lunch (12:00 – 2:00 PM)",
+    snacks: "Evening Snacks (4:00 – 5:30 PM)",
+    dinner: "Dinner (7:00 – 9:00 PM)",
+  };
+
+  const updateDoc = {
+    hostelId: hid,
+    messId: mid,
+    date: today,
+    slotId: targetSlot,
+    slotLabel: existing?.slotLabel || slotLabels[targetSlot] || `${targetSlot.toUpperCase()} Slot`,
+    totalStudentIntent: newIntent,
+    recommendedTarget: target,
+    bufferPct: 8,
+    source: "STUDENT_DEMAND",
+    updatedAt: new Date(),
+  };
+
+  await db.collection(KITCHEN_DEMAND_COLLECTION).updateOne(
+    query,
+    {
+      $set: updateDoc,
+      $setOnInsert: { createdAt: new Date() },
+    },
+    { upsert: true }
+  );
+
+  const saved = await db.collection(KITCHEN_DEMAND_COLLECTION).findOne(query);
+  return sanitizeDoc(saved || updateDoc);
 }
 
 // ─── ANALYTICS AGGREGATION ────────────────────────────────────────────────────

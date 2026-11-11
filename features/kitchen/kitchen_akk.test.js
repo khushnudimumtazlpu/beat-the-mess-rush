@@ -43,6 +43,7 @@ const {
   getWasteRecords,
   createWasteRecord,
   getDemandData,
+  syncStudentDemandAggregate,
   getKitchenAnalytics,
   KITCHEN_PRODUCTION_COLLECTION,
   KITCHEN_WASTE_COLLECTION,
@@ -433,6 +434,55 @@ describe("Kitchen Module: Database Persistence & Multi-Tenant Isolation", () => 
     expect(demandMessA.messId).toBe("mess-A");
     expect(demandMessB.messId).toBe("mess-B");
     expect(demandMessA.id).not.toBe(demandMessB.id);
+  });
+
+  it("seeds baseline demand with source: BASELINE and replaces with STUDENT_DEMAND on first student submission", async () => {
+    // 1. First fetch returns baseline demand with source BASELINE
+    const baseline = await getDemandData({
+      hostelId: "hostel-sync",
+      messId: "mess-sync",
+      date: "2026-11-10",
+      slotId: "dinner",
+    });
+    expect(baseline.source).toBe("BASELINE");
+    expect(baseline.totalStudentIntent).toBeGreaterThan(0); // Illustrative template count
+
+    // 2. First real student submits a Large portion (1.5) -> Replaces baseline
+    const syncedFirst = await syncStudentDemandAggregate({
+      hostelId: "hostel-sync",
+      messId: "mess-sync",
+      date: "2026-11-10",
+      slotId: "dinner",
+      portionDelta: 1.5,
+    });
+
+    expect(syncedFirst.source).toBe("STUDENT_DEMAND");
+    expect(syncedFirst.totalStudentIntent).toBe(1.5);
+    expect(syncedFirst.recommendedTarget).toBe(2); // Math.ceil(1.5 * 1.08) = 2
+
+    // 3. Second student submits a Regular portion (1.0) -> Increments to 2.5
+    const syncedSecond = await syncStudentDemandAggregate({
+      hostelId: "hostel-sync",
+      messId: "mess-sync",
+      date: "2026-11-10",
+      slotId: "dinner",
+      portionDelta: 1.0,
+    });
+
+    expect(syncedSecond.totalStudentIntent).toBe(2.5);
+    expect(syncedSecond.recommendedTarget).toBe(3); // Math.ceil(2.5 * 1.08) = 3
+
+    // 4. Student cancels Large portion (-1.5) -> Decrements to 1.0
+    const syncedCancel = await syncStudentDemandAggregate({
+      hostelId: "hostel-sync",
+      messId: "mess-sync",
+      date: "2026-11-10",
+      slotId: "dinner",
+      portionDelta: -1.5,
+    });
+
+    expect(syncedCancel.totalStudentIntent).toBe(1.0);
+    expect(syncedCancel.recommendedTarget).toBe(2); // Math.ceil(1.0 * 1.08) = 2
   });
 });
 
