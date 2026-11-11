@@ -609,7 +609,7 @@ export async function syncStudentDemandAggregate(
   }
 
   const findOptions = session ? { session } : {};
-  const updateOptions = session ? { session, upsert: true } : { upsert: true };
+  const updateOptions = session ? { session, upsert: false } : { upsert: true };
 
   const today = date || new Date().toISOString().split("T")[0];
   const targetSlot = (slotId || "lunch").toLowerCase();
@@ -652,19 +652,25 @@ export async function syncStudentDemandAggregate(
       updatedAt: new Date(),
     };
 
-    // When running inside a transaction, do NOT perform internal retries on the aborted session.
-    // Propagate write errors to the outer transaction boundary (e.g. session.withTransaction()).
+    // When running inside a transaction, use upsert: false and verify the document was matched.
+    // An un-pre-initialized slot inside a transaction must abort rather than silently inserting.
     if (session) {
-      await db.collection(KITCHEN_DEMAND_COLLECTION).updateOne(
+      const updateResult = await db.collection(KITCHEN_DEMAND_COLLECTION).updateOne(
         query,
         {
           $set: updateDoc,
-          $setOnInsert: { createdAt: new Date() },
         },
         updateOptions
       );
+
+      if (!updateResult.matchedCount) {
+        throw new Error(
+          `Kitchen aggregate demand record not found for hostel ${hostelId}, mess ${messId}, date ${today}, slot ${targetSlot}. Pre-initialization via ensureKitchenDemandRecord is required before starting the transaction.`
+        );
+      }
+
       const saved = await db.collection(KITCHEN_DEMAND_COLLECTION).findOne(query, findOptions);
-      return sanitizeDoc(saved || updateDoc);
+      return sanitizeDoc(saved);
     }
 
     // Standalone (no transaction): safe retry on duplicate key
@@ -745,14 +751,21 @@ export async function syncStudentDemandAggregate(
     },
   ];
 
-  // When running inside a transaction, do NOT perform internal retries on the aborted session.
-  // Propagate write errors to the outer transaction boundary (e.g. session.withTransaction()).
+  // When running inside a transaction, use upsert: false and verify the document was matched.
+  // An un-pre-initialized slot inside a transaction must abort rather than silently inserting.
   if (session) {
-    await db.collection(KITCHEN_DEMAND_COLLECTION).updateOne(
+    const updateResult = await db.collection(KITCHEN_DEMAND_COLLECTION).updateOne(
       query,
       pipeline,
       updateOptions
     );
+
+    if (!updateResult.matchedCount) {
+      throw new Error(
+        `Kitchen aggregate demand record not found for hostel ${hostelId}, mess ${messId}, date ${today}, slot ${targetSlot}. Pre-initialization via ensureKitchenDemandRecord is required before starting the transaction.`
+      );
+    }
+
     const saved = await db.collection(KITCHEN_DEMAND_COLLECTION).findOne(query, findOptions);
     return sanitizeDoc(saved);
   }

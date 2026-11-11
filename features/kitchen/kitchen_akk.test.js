@@ -627,6 +627,14 @@ describe("Kitchen Module: Database Persistence & Multi-Tenant Isolation", () => 
 
   it("propagates transaction session to all database operations in syncStudentDemandAggregate and getDemandData", async () => {
     const mockSession = { id: "mock-tx-session-token-xyz" };
+    // Pre-initialize demand record outside transaction so subsequent transactional update finds a match
+    await ensureKitchenDemandRecord({
+      hostelId: "hostel-tx",
+      messId: "mess-tx",
+      date: "2026-11-10",
+      slotId: "breakfast",
+    });
+
     const demandCollection = (await getMongoDbMock()).collection(KITCHEN_DEMAND_COLLECTION);
     const findOneSpy = vi.spyOn(demandCollection, "findOne");
     const updateOneSpy = vi.spyOn(demandCollection, "updateOne");
@@ -660,11 +668,11 @@ describe("Kitchen Module: Database Persistence & Multi-Tenant Isolation", () => 
       { session: mockSession }
     );
 
-    // Verify session passed to updateOne in syncStudentDemandAggregate
+    // Verify session and upsert: false passed to updateOne in syncStudentDemandAggregate
     expect(updateOneSpy).toHaveBeenCalledWith(
       expect.anything(),
       expect.anything(),
-      expect.objectContaining({ session: mockSession })
+      expect.objectContaining({ session: mockSession, upsert: false })
     );
 
     findOneSpy.mockRestore();
@@ -691,8 +699,16 @@ describe("Kitchen Module: Database Persistence & Multi-Tenant Isolation", () => 
 
   it("avoids running index DDL operations when a transaction session is provided", async () => {
     const mockSession = { id: "session-no-ddl-test" };
+    // Pre-initialize demand record outside transaction
+    await ensureKitchenDemandRecord({
+      hostelId: "hostel-tx-ddl",
+      messId: "mess-tx-ddl",
+      date: "2026-11-10",
+      slotId: "lunch",
+    });
+
     const demandCol = mockDb.collection(KITCHEN_DEMAND_COLLECTION);
-    const createIndexSpy = vi.spyOn(demandCol, "createIndex");
+    demandCol.createIndex.mockClear();
 
     // Call syncStudentDemandAggregate with transaction session
     await syncStudentDemandAggregate(
@@ -707,9 +723,55 @@ describe("Kitchen Module: Database Persistence & Multi-Tenant Isolation", () => 
     );
 
     // Verify DDL createIndex was NOT invoked inside the transaction flow
-    expect(createIndexSpy).not.toHaveBeenCalled();
+    expect(demandCol.createIndex).not.toHaveBeenCalled();
+  });
 
-    createIndexSpy.mockRestore();
+  it("uses upsert: false in transactional updates and aborts safely when pre-initialized aggregate is missing", async () => {
+    const mockSession = { id: "session-uninitialized-test" };
+    const demandCol = mockDb.collection(KITCHEN_DEMAND_COLLECTION);
+    const updateOneSpy = vi.spyOn(demandCol, "updateOne");
+
+    // 1. Path 2 (portionDelta): fails when record missing
+    await expect(
+      syncStudentDemandAggregate(
+        {
+          hostelId: "hostel-missing",
+          messId: "mess-missing",
+          date: "2026-11-10",
+          slotId: "lunch",
+          portionDelta: 1.0,
+        },
+        { session: mockSession }
+      )
+    ).rejects.toThrow("Kitchen aggregate demand record not found");
+
+    expect(updateOneSpy).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      expect.objectContaining({ session: mockSession, upsert: false })
+    );
+
+    // 2. Path 1 (totalIntent): also fails with upsert: false when record missing
+    await expect(
+      syncStudentDemandAggregate(
+        {
+          hostelId: "hostel-missing",
+          messId: "mess-missing",
+          date: "2026-11-10",
+          slotId: "lunch",
+          totalIntent: 50,
+        },
+        { session: mockSession }
+      )
+    ).rejects.toThrow("Kitchen aggregate demand record not found");
+
+    expect(updateOneSpy).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      expect.objectContaining({ session: mockSession, upsert: false })
+    );
+
+    updateOneSpy.mockRestore();
   });
 
   it("propagates errors directly out of syncStudentDemandAggregate when session is provided instead of retrying on aborted session", async () => {
