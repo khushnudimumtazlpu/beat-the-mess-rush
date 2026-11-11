@@ -23,6 +23,8 @@ import {
   getActiveStudentMesses,
   getCurrentStudentDemands,
   getIndiaServiceDate,
+  getStudentWorkspaceStatus,
+  isStudentScopeError,
   resolveActiveMessSelection,
   StudentDemandApiError,
   toExpectedArrivalAt,
@@ -295,6 +297,14 @@ export default function MealPlanner({ initialSlotId }) {
     setMessRefreshKey((key) => key + 1);
   }
 
+  function retryStudentScope() {
+    retryLoad();
+    retryMessLoad();
+  }
+
+  const hasStudentScopeError = isStudentScopeError(loadError) || isStudentScopeError(messLoadError);
+  const workspaceStatus = getStudentWorkspaceStatus({ isLoading, isMessLoading, loadError, messLoadError });
+
   return (
     <div className="student-page meal-planner-page">
       <PageContainer>
@@ -305,7 +315,7 @@ export default function MealPlanner({ initialSlotId }) {
             <h1>Plan a meal <em>that fits.</em></h1>
             <p>Save or update your meal demand for {serviceDate}.</p>
           </div>
-          <Badge tone="teal" dot>Connected to your account</Badge>
+          <Badge tone={workspaceStatus.tone} dot>{workspaceStatus.label}</Badge>
         </Reveal>
 
         <div className="meal-planner-layout">
@@ -357,7 +367,12 @@ export default function MealPlanner({ initialSlotId }) {
                 <p className="student-field-hint" id="arrival-hint">Arrival is saved in India Standard Time for this service date.</p>
               </div>
 
-              {messLoadError ? <ApiAlert error={messLoadError} onRetry={retryMessLoad} /> : null}
+              {hasStudentScopeError ? (
+                <ApiAlert
+                  error={{ message: "Your Student ID or Hostel assignment is unavailable to meal planning. Ask a Super Admin to check this account, then retry." }}
+                  onRetry={retryStudentScope}
+                />
+              ) : messLoadError ? <ApiAlert error={messLoadError} onRetry={retryMessLoad} /> : null}
               {!messLoadError && !isMessLoading && activeMesses.length === 0 ? <p className="student-form-error" role="alert">No active Mess is available for your Hostel yet.</p> : null}
               {!messLoadError && activeMesses.length > 1 ? (
                 <div className="arrival-field">
@@ -370,7 +385,7 @@ export default function MealPlanner({ initialSlotId }) {
               ) : null}
               {!messLoadError && activeMesses.length === 1 ? <p className="student-field-hint">Using {activeMesses[0].name} · {activeMesses[0].code}.</p> : null}
 
-              <ApiAlert error={loadError} onRetry={retryLoad} />
+              {!hasStudentScopeError ? <ApiAlert error={loadError} onRetry={retryLoad} /> : null}
               <ApiAlert error={actionError} />
               <div className="meal-planner-submit">
                 <Button type="submit" size="large" disabled={isLoading || isMessLoading || isSubmitting || Boolean(loadError) || Boolean(messLoadError) || activeMesses.length === 0 || (activeMesses.length > 1 && !selectedMessId)}>

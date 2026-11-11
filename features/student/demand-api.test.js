@@ -4,8 +4,10 @@ import {
   createStudentDemand,
   getCurrentStudentDemands,
   getActiveStudentMesses,
+  getStudentWorkspaceStatus,
   getIndiaServiceDate,
   getStudentDemandHistory,
+  isStudentScopeError,
   resolveActiveMessSelection,
   StudentDemandApiError,
   toExpectedArrivalAt,
@@ -31,6 +33,32 @@ function successfulResponse(data = {}) {
 }
 
 describe("Student demand API client", () => {
+  it("reports account readiness from demand and Mess API state", () => {
+    expect(getStudentWorkspaceStatus({ isLoading: true, isMessLoading: false })).toEqual({
+      label: "Checking account access", tone: "lavender",
+    });
+    expect(getStudentWorkspaceStatus({ isLoading: false, isMessLoading: false })).toEqual({
+      label: "Account ready", tone: "teal",
+    });
+    expect(isStudentScopeError({ code: "INVALID_STUDENT_DEMAND_IDENTITY" })).toBe(true);
+    expect(isStudentScopeError({ code: "INVALID_STUDENT_SCOPE" })).toBe(true);
+    expect(getStudentWorkspaceStatus({
+      isLoading: false,
+      isMessLoading: false,
+      loadError: { code: "INVALID_STUDENT_SCOPE", status: 403 },
+    })).toEqual({ label: "Account setup needed", tone: "coral" });
+    expect(getStudentWorkspaceStatus({
+      isLoading: false,
+      isMessLoading: false,
+      messLoadError: { code: "UNAUTHENTICATED", status: 401 },
+    })).toEqual({ label: "Sign in again", tone: "coral" });
+    expect(getStudentWorkspaceStatus({
+      isLoading: false,
+      isMessLoading: false,
+      loadError: { code: "INTERNAL_SERVER_ERROR", status: 500 },
+    })).toEqual({ label: "Connection needs attention", tone: "coral" });
+  });
+
   it("generates arrival timestamps for the India service date with +05:30 offset", () => {
     expect(getIndiaServiceDate(now)).toBe("2026-11-10");
     expect(toExpectedArrivalAt("18:30", now)).toBe("2026-11-10T18:30:00+05:30");

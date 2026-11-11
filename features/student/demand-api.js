@@ -1,5 +1,25 @@
 const HISTORY_PATH = "/api/student/demands/history";
 const DEMANDS_PATH = "/api/student/demands";
+const STUDENT_SCOPE_ERROR_CODES = new Set([
+  "INVALID_STUDENT_DEMAND_IDENTITY",
+  "INVALID_STUDENT_SCOPE",
+  "STUDENT_HOSTEL_UNAVAILABLE",
+]);
+
+export function isStudentScopeError(error) {
+  return STUDENT_SCOPE_ERROR_CODES.has(error?.code);
+}
+
+export function getStudentWorkspaceStatus({ isLoading, isMessLoading, loadError, messLoadError }) {
+  if (isLoading || isMessLoading) return { label: "Checking account access", tone: "lavender" };
+  if (isStudentScopeError(loadError) || isStudentScopeError(messLoadError)) {
+    return { label: "Account setup needed", tone: "coral" };
+  }
+  const error = loadError ?? messLoadError;
+  if (!error) return { label: "Account ready", tone: "teal" };
+  if (error.status === 401) return { label: "Sign in again", tone: "coral" };
+  return { label: "Connection needs attention", tone: "coral" };
+}
 
 export class StudentDemandApiError extends Error {
   constructor(message, { status = 0, code = "REQUEST_FAILED" } = {}) {
