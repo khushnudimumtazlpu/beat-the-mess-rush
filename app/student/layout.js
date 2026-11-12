@@ -4,7 +4,7 @@ import { USER_ROLE } from "../../lib/auth-contracts.js";
 
 export const metadata = {
   title: "Student Experience | RushLess",
-  description: "Plan campus meals in the RushLess student demo experience.",
+  description: "Plan and manage your campus meal demands with RushLess.",
 };
 
 export default async function StudentLayout({ children }) {

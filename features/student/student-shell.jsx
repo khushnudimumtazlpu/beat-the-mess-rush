@@ -15,8 +15,8 @@ export function StudentShell({ children }) {
     <AppShell navItems={studentNav} showLogout>
       <div className="student-app">
         <div className="student-demo-ribbon" role="note">
-          <Badge tone="lavender" dot>Demo experience</Badge>
-          <span>Schedules and menus are illustrative. No campus system is connected.</span>
+          <Badge tone="teal" dot>Student meal workspace</Badge>
+          <span>Your meal demands save to your account. Menu and food availability are not shown here.</span>
           <Link href="/">Back to RushLess</Link>
         </div>
         {children}
