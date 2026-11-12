@@ -137,7 +137,6 @@ describe("public registration API", () => {
     ["consecutive dots in email local part", { ...validBody(), email: "user..name@example.com" }],
     ["numeric email top-level domain", { ...validBody(), email: "person@example.123" }],
     ["leading dot in email local part", { ...validBody(), email: ".person@example.com" }],
-    ["missing Student Hostel", { ...validBody(), hostelId: undefined }],
     ["malformed Student Hostel ID", { ...validBody(), hostelId: "not-an-object-id" }],
     ["short password", { ...validBody(), password: "short" }],
     ["missing account type", { name: "Campus Member", email: "member@example.test", password: "a-secure-test-password" }],
@@ -145,6 +144,19 @@ describe("public registration API", () => {
     const response = await POST(registrationRequest(body));
     expect(response.status).toBe(400);
     expect(getAuthMock).not.toHaveBeenCalled();
+  });
+
+  it("allows Student registration without a Hostel selection", async () => {
+    let capturedIntent;
+    signUpEmailMock.mockImplementationOnce(async () => {
+      capturedIntent = getRegistrationIntent();
+      return { token: null, user: { id: "new-student-id" } };
+    });
+
+    const response = await POST(registrationRequest({ ...validBody(USER_ROLE.STUDENT), hostelId: undefined }));
+    expect(response.status).toBe(202);
+    expect(signUpEmailMock).toHaveBeenCalledOnce();
+    expect(capturedIntent).toEqual({ accountType: USER_ROLE.STUDENT });
   });
 
   it.each([
