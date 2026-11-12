@@ -99,11 +99,13 @@ export async function submitRegistrationRequest(values, fetchRequest = fetch) {
   return { ok: true, accountType: values.accountType };
 }
 
-function successDetails(accountType) {
+export function registrationSuccessDetails(accountType) {
+  const existingAccountNote = "If this email is already registered, its existing account is not changed. Use a different email to create a separate account.";
+
   if (accountType === ACCOUNT_TYPES.STUDENT) {
-    return "If this email is available, the request was received. New Student accounts remain pending; Student approval is not available yet.";
+    return `${existingAccountNote} A new Student request remains pending until approval for its selected Hostel.`;
   }
-  return "If this email is available, the request was received. New Mess Admin accounts remain pending until a Super Admin approves and assigns a Hostel.";
+  return `${existingAccountNote} A new Mess Admin request remains pending until a Super Admin approves and assigns a Hostel.`;
 }
 
 export function RegistrationForm() {
@@ -176,7 +178,7 @@ export function RegistrationForm() {
         <span className="flex items-center gap-2 font-semibold text-midnight">
           <CheckCircle2 size={19} aria-hidden="true" /> Registration request received
         </span>
-        <p className="mt-3 text-sm leading-relaxed text-muted">{successDetails(submittedType)}</p>
+        <p className="mt-3 text-sm leading-relaxed text-muted">{registrationSuccessDetails(submittedType)}</p>
         <p className="mt-2 text-sm leading-relaxed text-muted">
           You may sign in while your request is pending to view the approval screen.
         </p>
