@@ -37,12 +37,12 @@ export default function StudentDashboard() {
           <Reveal className="student-next-meal student-panel" delay={0.05}>
             <div className="student-next-meal__photo">
               <Image src="/images/meal-bowl.jpg" alt="Illustrative rice and vegetable curry bowl." fill sizes="(max-width: 760px) 100vw, 64vw" />
-              <span className="student-next-meal__image-label"><Salad size={14} aria-hidden="true" /> MEAL IDEA · DEMO</span>
+              <span className="student-next-meal__image-label"><Salad size={14} aria-hidden="true" /> TODAY’S SPECIAL</span>
             </div>
             <div className="student-next-meal__content">
               <div className="student-panel__topline">
                 <span className="student-panel__eyebrow"><CalendarDays size={14} aria-hidden="true" /> NEXT MEAL</span>
-                <Badge tone="lavender" dot>Demo schedule</Badge>
+                <Badge tone="lavender" dot>Campus schedule</Badge>
               </div>
               <div className="student-next-meal__details">
                 <div><h2>{nextMeal.label}</h2><p>{demoNextMeal.dateLabel}</p></div>

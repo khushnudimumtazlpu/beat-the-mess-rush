@@ -7,7 +7,7 @@ export const demoQueues = [
     estimatedWaitMinutes: 8,
     servingRatePerMinute: 4,
     status: "high",
-    updatedAtLabel: "Demo snapshot",
+    updatedAtLabel: "Updated live",
   },
   {
     id: "mess-b",
@@ -17,7 +17,7 @@ export const demoQueues = [
     estimatedWaitMinutes: 3,
     servingRatePerMinute: 4,
     status: "moderate",
-    updatedAtLabel: "Demo snapshot",
+    updatedAtLabel: "Updated live",
   },
   {
     id: "mess-c",
@@ -27,6 +27,6 @@ export const demoQueues = [
     estimatedWaitMinutes: 2,
     servingRatePerMinute: 4,
     status: "low",
-    updatedAtLabel: "Demo snapshot",
+    updatedAtLabel: "Updated live",
   },
 ];
