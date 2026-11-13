@@ -67,6 +67,21 @@ async function readRegistrationBody(request) {
     return { error: errorResponse(400, "INVALID_PASSWORD", "Password must contain 10 to 128 characters.") };
   }
   if (accountType === USER_ROLE.STUDENT) {
+    if (
+      body.hostelId === undefined ||
+      body.hostelId === null ||
+      (typeof body.hostelId === "string" && body.hostelId.trim().length === 0)
+    ) {
+      return {
+        value: {
+          name,
+          email,
+          password,
+          accountType,
+          hostelObjectId: null,
+        },
+      };
+    }
     try {
       return {
         value: {
@@ -93,7 +108,7 @@ export async function POST(request) {
 
   try {
     let hostelId;
-    if (accountType === USER_ROLE.STUDENT) {
+    if (accountType === USER_ROLE.STUDENT && hostelObjectId) {
       const db = await getMongoDb();
       const hostel = await db.collection(HOSTEL_COLLECTION).findOne(
         { _id: hostelObjectId, status: "ACTIVE" },
@@ -108,7 +123,7 @@ export async function POST(request) {
     const auth = await getAuth();
     await withRegistrationIntent(accountType, () => auth.api.signUpEmail({
       body: { name, email, password },
-    }), hostelId === undefined ? undefined : { hostelId });
+    }), hostelId ? { hostelId } : {});
 
     // Better Auth's autoSignIn:false behavior intentionally returns a generic
     // success for duplicate emails. Keep this response identical so email

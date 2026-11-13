@@ -97,14 +97,26 @@ describe("registration form request workflow", () => {
     expect(options.body).not.toMatch(/role|status/);
   });
 
-  it("blocks Student submission when no Hostel is selected", async () => {
-    const fetchRequest = vi.fn();
+  it("allows Student submission when no Hostel is selected", async () => {
+    const fetchRequest = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 202,
+      json: async () => ({ success: true, data: { accountType: "STUDENT", status: "PENDING" } }),
+    });
 
     await expect(submitRegistrationRequest({ ...validValues, hostelId: "" }, fetchRequest)).resolves.toEqual({
-      ok: false,
-      message: "Select an active Hostel before creating a Student account.",
+      ok: true,
+      accountType: "STUDENT",
     });
-    expect(fetchRequest).not.toHaveBeenCalled();
+    expect(fetchRequest).toHaveBeenCalledOnce();
+    const body = JSON.parse(fetchRequest.mock.calls[0][1].body);
+    expect(body).toEqual({
+      name: "Campus Member",
+      email: "campus@example.test",
+      password: "a-secure-test-password",
+      accountType: "STUDENT",
+    });
+    expect(body).not.toHaveProperty("hostelId");
   });
 
   it("keeps Mess Admin registration on its original four-field contract", async () => {

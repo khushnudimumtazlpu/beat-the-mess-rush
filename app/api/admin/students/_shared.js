@@ -26,13 +26,14 @@ export const SAFE_STUDENT_PROJECTION = Object.freeze({
   updatedAt: 1,
 });
 
-export function formatStudent(student) {
+export function formatStudent(student, hostelName = null) {
   return {
     id: student._id.toString(),
     name: student.name ?? "",
     email: student.email ?? "",
     status: student.status,
     hostelId: student.hostelId ?? null,
+    ...(hostelName ? { hostelName } : {}),
     createdAt: student.createdAt ?? null,
     updatedAt: student.updatedAt ?? null,
   };

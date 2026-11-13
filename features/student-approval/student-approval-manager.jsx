@@ -53,6 +53,7 @@ export function StudentApprovalManager({ audience }) {
   const isSuperAdmin = audience === "superAdmin";
   const title = isSuperAdmin ? "Student approvals" : "Students at your Hostel";
   const [students, setStudents] = useState([]);
+  const [hostels, setHostels] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState(null);
@@ -88,6 +89,21 @@ export function StudentApprovalManager({ audience }) {
       requestVersion.current += 1;
     };
   }, [loadStudents]);
+
+  useEffect(() => {
+    if (!isSuperAdmin) return undefined;
+    let active = true;
+    requestAdminApi("/api/admin/hostels")
+      .then((records) => {
+        if (active && Array.isArray(records)) {
+          setHostels(records);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [isSuperAdmin]);
 
   async function performDecision(student, decision) {
     if (actionLock.current) return;
@@ -180,7 +196,12 @@ export function StudentApprovalManager({ audience }) {
                   {isSuperAdmin ? (
                     <div>
                       <dt>Hostel</dt>
-                      <dd>{student.hostelId || "Assignment unavailable"}</dd>
+                      <dd>
+                        {student.hostelName
+                          || (student.hostelId
+                            ? (hostels.find((h) => h.id === student.hostelId)?.name || student.hostelId)
+                            : "Assignment unavailable")}
+                      </dd>
                     </div>
                   ) : null}
                 </dl>

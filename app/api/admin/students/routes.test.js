@@ -44,7 +44,7 @@ const STUDENT_ID = new ObjectId();
 const OTHER_HOSTEL_ID = new ObjectId();
 const actor = { id: ADMIN_ID.toHexString(), role: USER_ROLE.SUPER_ADMIN, status: ACCOUNT_STATUS.ACTIVE };
 
-function createHarness({ currentAdmin = { _id: ADMIN_ID }, students = [] } = {}) {
+function createHarness({ currentAdmin = { _id: ADMIN_ID }, students = [], hostels = [] } = {}) {
   const users = {
     findOne: vi.fn(async (filter) => (
       filter._id?.equals?.(ADMIN_ID) &&
@@ -67,9 +67,24 @@ function createHarness({ currentAdmin = { _id: ADMIN_ID }, students = [] } = {})
       return cursor;
     }),
   };
-  getMongoDbMock.mockResolvedValue({ collection: vi.fn(() => users) });
+  const hostelCollection = {
+    find: vi.fn((filter) => {
+      const cursor = {
+        toArray: vi.fn(async () => {
+          if (filter?._id?.$in) {
+            return hostels.filter((h) => filter._id.$in.some((id) => id.equals(h._id)));
+          }
+          return hostels;
+        }),
+      };
+      return cursor;
+    }),
+  };
+  getMongoDbMock.mockResolvedValue({
+    collection: vi.fn((name) => (name === "hostels" ? hostelCollection : users)),
+  });
   requireActiveRoleMock.mockResolvedValue(actor);
-  return users;
+  return Object.assign(users, { hostelCollection });
 }
 
 function student(hostelId, overrides = {}) {
@@ -135,6 +150,25 @@ describe("Super Admin Student approval routes", () => {
     });
     expect(body.data[0]).not.toHaveProperty("password");
     expect(body.data[0]).not.toHaveProperty("account");
+  });
+
+  it("enriches pending Students with hostelName when available in HOSTEL_COLLECTION", async () => {
+    const hostelId = new ObjectId();
+    const hostelStudent = student(hostelId.toHexString());
+    createHarness({
+      students: [hostelStudent],
+      hostels: [{ _id: hostelId, name: "Boys Hostel 1" }],
+    });
+
+    const response = await GET(new Request("http://localhost/api/admin/students"));
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.data[0]).toMatchObject({
+      id: hostelStudent._id.toHexString(),
+      hostelId: hostelId.toHexString(),
+      hostelName: "Boys Hostel 1",
+    });
   });
 
   it.each([

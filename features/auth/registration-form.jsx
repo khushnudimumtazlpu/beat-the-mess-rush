@@ -53,12 +53,6 @@ export async function submitRegistrationRequest(values, fetchRequest = fetch) {
   if (!Object.values(ACCOUNT_TYPES).includes(values.accountType)) {
     return { ok: false, message: "Choose Student or Mess Admin as your account type." };
   }
-  if (values.accountType === ACCOUNT_TYPES.STUDENT && typeof values.hostelId !== "string") {
-    return { ok: false, message: "Select an active Hostel before creating a Student account." };
-  }
-  if (values.accountType === ACCOUNT_TYPES.STUDENT && values.hostelId.trim().length === 0) {
-    return { ok: false, message: "Select an active Hostel before creating a Student account." };
-  }
 
   const body = {
     name: values.name.trim(),
@@ -66,7 +60,13 @@ export async function submitRegistrationRequest(values, fetchRequest = fetch) {
     password: values.password,
     accountType: values.accountType,
   };
-  if (values.accountType === ACCOUNT_TYPES.STUDENT) body.hostelId = values.hostelId;
+  if (
+    values.accountType === ACCOUNT_TYPES.STUDENT &&
+    typeof values.hostelId === "string" &&
+    values.hostelId.trim().length > 0
+  ) {
+    body.hostelId = values.hostelId.trim();
+  }
 
   let response;
   try {
@@ -148,10 +148,6 @@ export function RegistrationForm() {
   async function handleSubmit(event) {
     event.preventDefault();
     if (submissionInProgress.current) return;
-    if (accountType === ACCOUNT_TYPES.STUDENT && !hostelId) {
-      setError("Select an active Hostel before creating a Student account.");
-      return;
-    }
 
     setError("");
     submissionInProgress.current = true;
@@ -220,12 +216,11 @@ export function RegistrationForm() {
               setHostelId(event.target.value);
               setError("");
             }}
-            required
-            disabled={hostelsState !== "ready" || hostels.length === 0 || isSubmitting}
-            hint="Choose your active Hostel. It will be used for your pending approval request."
+            disabled={isSubmitting}
+            hint="Choose your active Hostel (optional). Super Admin can also assign it later."
           >
-            <option value="" disabled>
-              {hostelsState === "loading" ? "Loading active Hostels..." : "Choose a Hostel"}
+            <option value="">
+              {hostelsState === "loading" ? "Loading active Hostels..." : "Choose a Hostel (Optional)"}
             </option>
             {hostels.map((hostel) => (
               <option key={hostel.id} value={hostel.id}>{hostel.name}</option>
@@ -276,7 +271,7 @@ export function RegistrationForm() {
         required
       />
       {error ? <p className="ui-field__error" role="alert">{error}</p> : null}
-      <Button type="submit" fullWidth disabled={isSubmitting || (accountType === ACCOUNT_TYPES.STUDENT && hostelsState === "loading")}>
+      <Button type="submit" fullWidth disabled={isSubmitting}>
         {isSubmitting ? "Sending request..." : "Create account"}
         {!isSubmitting ? <ArrowRight size={17} aria-hidden="true" /> : null}
       </Button>
