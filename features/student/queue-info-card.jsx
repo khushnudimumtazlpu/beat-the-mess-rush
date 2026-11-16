@@ -44,7 +44,7 @@ export function QueueInfoCard({ queueInfo: propQueueInfo = null }) {
         return;
       }
       const payload = await res.json();
-      if (payload?.success && Array.isArray(payload.data) && payload.data.length > 0) {
+      if (payload?.success && Array.isArray(payload.data)) {
         setLiveQueues(payload.data);
       } else {
         setLiveQueues(null);
@@ -63,7 +63,7 @@ export function QueueInfoCard({ queueInfo: propQueueInfo = null }) {
     fetch("/api/queues", { credentials: "same-origin" })
       .then((res) => (res.ok ? res.json() : null))
       .then((payload) => {
-        if (!cancelled && payload?.success && Array.isArray(payload.data) && payload.data.length > 0) {
+        if (!cancelled && payload?.success && Array.isArray(payload.data)) {
           setLiveQueues(payload.data);
         }
       })
@@ -103,7 +103,7 @@ export function QueueInfoCard({ queueInfo: propQueueInfo = null }) {
 
   // Determine active queue data: Live API data if present, otherwise interactive demo queue snapshot.
   let currentInfo;
-  const activeLiveQueue = liveQueues?.find((q) => q.isOpen) || liveQueues?.[0];
+  const activeLiveQueue = liveQueues?.find((q) => q.isOpen) || (Array.isArray(liveQueues) && liveQueues.length > 0 ? liveQueues[0] : null);
 
   if (activeLiveQueue) {
     const crowd = activeLiveQueue.crowdLevel || activeLiveQueue.status || "Normal";
@@ -113,6 +113,14 @@ export function QueueInfoCard({ queueInfo: propQueueInfo = null }) {
       estimatedWaitMinutes: activeLiveQueue.estimatedWaitMinutes ?? 0,
       source: activeLiveQueue.mealType ? `${activeLiveQueue.mealType} Counter` : "Active Queue",
       updatedAtLabel: "Just now",
+    };
+  } else if (Array.isArray(liveQueues) && liveQueues.length === 0) {
+    currentInfo = {
+      state: "live",
+      statusLabel: "No active queue lines",
+      estimatedWaitMinutes: 0,
+      source: "Campus Mess",
+      updatedAtLabel: "Updated live",
     };
   } else {
     const selectedDemo = demoQueues.find((q) => q.id === selectedMessId) || demoQueues[0];
