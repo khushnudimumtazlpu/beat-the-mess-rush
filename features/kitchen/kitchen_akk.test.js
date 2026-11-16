@@ -1056,6 +1056,34 @@ describe("Kitchen Module: Role-Based Authorization & Tenant Isolation", () => {
     ).rejects.toThrow("Mess assignment is required for kitchen operations.");
   });
 
+  it("dynamically resolves active mess from MESS_COLLECTION for MESS_ADMIN without static user.messId", async () => {
+    getSessionMock.mockResolvedValue({
+      user: {
+        id: "admin-dynamic-mess",
+        role: USER_ROLE.MESS_ADMIN,
+        status: ACCOUNT_STATUS.ACTIVE,
+        hostelId: "507f1f77bcf86cd799439011",
+      },
+    });
+
+    const mockDb = {
+      collection: () => ({
+        findOne: async (filter) => {
+          if (filter.status === "ACTIVE") {
+            return { _id: "507f1f77bcf86cd799439099", name: "Dynamic Mess", hostelId: filter.hostelId };
+          }
+          return null;
+        },
+      }),
+    };
+    getMongoDbMock.mockResolvedValue(mockDb);
+
+    const auth = await authorizeKitchenRequest();
+    expect(auth.hostelId).toBe("507f1f77bcf86cd799439011");
+    expect(auth.messId).toBe("507f1f77bcf86cd799439099");
+    expect(auth.user.role).toBe(USER_ROLE.MESS_ADMIN);
+  });
+
   it("prevents MESS_ADMIN from accessing a different hostel", async () => {
     getSessionMock.mockResolvedValue({
       user: {
