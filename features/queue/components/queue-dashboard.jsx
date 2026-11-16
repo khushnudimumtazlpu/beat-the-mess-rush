@@ -52,19 +52,6 @@ const [rateInput, setRateInput] = useState(
 
 const [message, setMessage] = useState("");
 
-//   const selectedQueue = demoQueues.find(
-//     (queue) => queue.id === selectedId
-//   );
-
-// const queues = demoQueues.map((queue) => ({
-//   ...queue,
-//   ...calculateQueueMetrics(queue),
-// }));
-
-// const selectedQueue = queues.find(
-//   (queue) => queue.id === selectedId
-// );
-
 const queues = queueData.map((queue) => ({
   ...queue,
   ...calculateQueueMetrics(queue),
@@ -73,11 +60,6 @@ const queues = queueData.map((queue) => ({
 const selectedQueue = queues.find(
   (queue) => queue.id === selectedId
 );
-
-//   const totalPeopleWaiting = demoQueues.reduce(
-//     (total, queue) => total + queue.peopleWaiting,
-//     0
-//   );
 
 const totalPeopleWaiting = queues.reduce(
   (total, queue) => total + queue.peopleWaiting,
@@ -156,7 +138,7 @@ function handleQueueUpdate(event) {
 
           <div className="flex items-center gap-3">
             <span className="rounded-full bg-[#FFF0D8] px-3 py-2 text-xs font-bold text-[#8B4D20]">
-              DEMO DATA
+              CAMPUS ESTIMATE
             </span>
             <LogoutButton />
           </div>
@@ -196,7 +178,7 @@ function handleQueueUpdate(event) {
             </p>
 
             <p className="mt-2 text-xs text-white/60">
-              Illustrative total · Demo data
+              Illustrative total · Campus estimate
             </p>
           </article>
 
@@ -419,41 +401,6 @@ function handleQueueUpdate(event) {
                 )}
               </div>
             </form>
-          </div>
-
-          {/* Queue update history */}
-          <div className="rounded-3xl border border-black/10 bg-white p-6 shadow-sm lg:col-span-2">
-            <h2 className="text-xl font-extrabold">
-              Recent queue updates
-            </h2>
-
-            {history.length === 0 ? (
-              <p className="mt-3 text-sm text-slate-500">
-                No updates recorded during this session.
-              </p>
-            ) : (
-              <ul className="mt-4 space-y-3">
-                {history.map((item) => (
-                  <li
-                    key={item.id}
-                    className="rounded-xl bg-slate-50 p-4 text-sm"
-                  >
-                    <p className="font-bold">
-                      {item.messName}
-                    </p>
-
-                    <p className="mt-1 text-slate-600">
-                      {item.peopleWaiting} people waiting ·{" "}
-                      {item.servingRatePerMinute} people served/minute
-                    </p>
-
-                    <p className="mt-1 text-xs text-slate-500">
-                      {item.updatedAt}
-                    </p>
-                  </li>
-                ))}
-              </ul>
-            )}
           </div>
         </section>
         <QueueAnalytics queues={queues} history={history} />

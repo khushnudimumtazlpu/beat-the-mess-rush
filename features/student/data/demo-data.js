@@ -47,7 +47,7 @@ export const demoMealSlots = [
 ];
 
 export const demoNextMeal = {
-  mess: "Demo Campus Mess",
+  mess: "Central Campus Mess",
   slotId: "lunch",
   dateLabel: "Sample schedule · today",
   window: "12:00–2:00 PM",
