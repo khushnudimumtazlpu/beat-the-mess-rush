@@ -630,10 +630,26 @@ export default function QueueDashboard() {
       {/* Top Navigation */}
       <header className="border-b border-black/10 bg-white/80">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-5 py-5">
-          <Link href="/" className="inline-flex items-center gap-2 text-sm font-semibold">
-            <ArrowLeft size={18} />
-            Back to RushLess
-          </Link>
+          <div className="flex items-center gap-4">
+            <Link href="/" className="inline-flex items-center gap-2 text-sm font-semibold">
+              <ArrowLeft size={18} />
+              Back to RushLess
+            </Link>
+            <nav className="flex items-center gap-1.5" aria-label="Mess Admin sections">
+              <Link
+                href="/queue"
+                className="rounded-full bg-slate-900 px-3.5 py-1 text-xs font-bold text-white shadow-sm"
+              >
+                Queue & Crowd
+              </Link>
+              <Link
+                href="/kitchen"
+                className="rounded-full border border-black/10 bg-white px-3.5 py-1 text-xs font-bold text-slate-700 hover:bg-slate-100 transition"
+              >
+                Kitchen Portal
+              </Link>
+            </nav>
+          </div>
 
           <div className="flex items-center gap-3">
             <span className="flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1.5 text-xs font-bold text-emerald-800">

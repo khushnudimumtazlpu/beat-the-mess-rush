@@ -96,14 +96,6 @@ export async function authorizeKitchenRequest(
       );
     }
 
-    if (!effectiveMessId) {
-      throw new AuthorizationError(
-        "Mess assignment is required for kitchen operations.",
-        403,
-        "MESS_REQUIRED"
-      );
-    }
-
     // MESS_ADMIN requests are strictly locked to their assigned hostel
     if (requestedHostelId && String(requestedHostelId) !== String(effectiveHostelId)) {
       throw new AuthorizationError(
@@ -113,13 +105,56 @@ export async function authorizeKitchenRequest(
       );
     }
 
-    // MESS_ADMIN requests are strictly restricted to their assigned mess on the server side
-    if (requestedMessId && String(requestedMessId) !== String(effectiveMessId)) {
-      throw new AuthorizationError(
-        "You do not have access to this mess's kitchen records.",
-        403,
-        "MESS_SCOPE_REQUIRED"
-      );
+    if (!effectiveMessId) {
+      try {
+        const db = await getMongoDb();
+        if (db?.collection) {
+          const hostelObjectId = isValidObjectIdHex(effectiveHostelId)
+            ? toObjectId(effectiveHostelId, "hostelId")
+            : effectiveHostelId;
+
+          if (requestedMessId) {
+            const reqMessObjectId = isValidObjectIdHex(requestedMessId)
+              ? toObjectId(requestedMessId, "messId")
+              : requestedMessId;
+            const targetMess = await db.collection(MESS_COLLECTION).findOne({
+              _id: reqMessObjectId,
+              hostelId: hostelObjectId,
+              status: "ACTIVE",
+            });
+            if (targetMess) {
+              effectiveMessId = String(targetMess._id);
+            }
+          } else {
+            const firstMess = await db.collection(MESS_COLLECTION).findOne(
+              { hostelId: hostelObjectId, status: "ACTIVE" },
+              { sort: { name: 1, _id: 1 } }
+            );
+            if (firstMess) {
+              effectiveMessId = String(firstMess._id);
+            }
+          }
+        }
+      } catch {
+        // Fall through to MESS_REQUIRED check
+      }
+
+      if (!effectiveMessId) {
+        throw new AuthorizationError(
+          "Mess assignment is required for kitchen operations.",
+          403,
+          "MESS_REQUIRED"
+        );
+      }
+    } else {
+      // MESS_ADMIN requests are strictly restricted to their assigned mess on the server side
+      if (requestedMessId && String(requestedMessId) !== String(effectiveMessId)) {
+        throw new AuthorizationError(
+          "You do not have access to this mess's kitchen records.",
+          403,
+          "MESS_SCOPE_REQUIRED"
+        );
+      }
     }
   } else if (isSuperAdmin) {
     if (requestedHostelId) {

@@ -25,6 +25,8 @@ const KitchenStoreContext = createContext(null);
 
 // ── Provider — wrap the kitchen layout with this ──────────────────────────────
 export function KitchenStoreProvider({ children }) {
+  const [messes, setMesses] = useState([]);
+  const [selectedMessId, setSelectedMessId] = useState("");
   const [productionRecords, setProductionRecords] = useState([]);
   const [wasteRecords, setWasteRecords] = useState([]);
   const [demandData, setDemandData] = useState(null);
@@ -34,14 +36,36 @@ export function KitchenStoreProvider({ children }) {
   const [error, setError] = useState(null);
 
   useEffect(() => {
+    let mounted = true;
+    async function loadMesses() {
+      try {
+        const res = await fetch("/api/queues/messes");
+        const json = await res.json();
+        if (mounted && json.success && Array.isArray(json.data) && json.data.length > 0) {
+          setMesses(json.data);
+          setSelectedMessId(json.data[0].id);
+        }
+      } catch {
+        // Silently ignore if messes route unavailable
+      }
+    }
+    loadMesses();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
     let cancelled = false;
 
     async function loadData() {
+      setLoading(true);
       try {
+        const messParam = selectedMessId ? { messId: selectedMessId } : {};
         const [prods, wastes, analytics] = await Promise.all([
-          fetchProductionRecords().catch(() => null),
-          fetchWasteRecords().catch(() => null),
-          fetchKitchenAnalytics().catch(() => null),
+          fetchProductionRecords(messParam).catch(() => null),
+          fetchWasteRecords(messParam).catch(() => null),
+          fetchKitchenAnalytics(messParam).catch(() => null),
         ]);
 
         if (cancelled) return;
@@ -80,16 +104,17 @@ export function KitchenStoreProvider({ children }) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [selectedMessId]);
 
   const refreshAll = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
+      const messParam = selectedMessId ? { messId: selectedMessId } : {};
       const [prods, wastes, analytics] = await Promise.all([
-        fetchProductionRecords().catch(() => null),
-        fetchWasteRecords().catch(() => null),
-        fetchKitchenAnalytics().catch(() => null),
+        fetchProductionRecords(messParam).catch(() => null),
+        fetchWasteRecords(messParam).catch(() => null),
+        fetchKitchenAnalytics(messParam).catch(() => null),
       ]);
 
       if (prods !== null) {
@@ -107,27 +132,29 @@ export function KitchenStoreProvider({ children }) {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [selectedMessId]);
 
   // Load demand data for a specific meal slot
   const fetchDemandForSlot = useCallback(async (slotId = "lunch") => {
     try {
-      const demand = await fetchDemandData({ slotId });
+      const messParam = selectedMessId ? { messId: selectedMessId } : {};
+      const demand = await fetchDemandData({ slotId, ...messParam });
       setDemandData(demand);
       return demand;
     } catch {
       return null;
     }
-  }, []);
+  }, [selectedMessId]);
 
   // Add a new production record (persists to DB)
   async function addProductionRecord(record) {
     try {
-      const saved = await createProductionBatch(record);
+      const toSave = selectedMessId && !record.messId ? { ...record, messId: selectedMessId } : record;
+      const saved = await createProductionBatch(toSave);
       setProductionRecords((prev) => [saved, ...prev]);
       setIsLive(true);
       // Refresh analytics in background
-      fetchKitchenAnalytics()
+      fetchKitchenAnalytics(selectedMessId ? { messId: selectedMessId } : {})
         .then(setAnalyticsData)
         .catch(() => {});
       return saved;
@@ -145,7 +172,7 @@ export function KitchenStoreProvider({ children }) {
       setProductionRecords((prev) =>
         prev.map((r) => (r.id === id ? { ...r, ...updated } : r))
       );
-      fetchKitchenAnalytics()
+      fetchKitchenAnalytics(selectedMessId ? { messId: selectedMessId } : {})
         .then(setAnalyticsData)
         .catch(() => {});
       return updated;
@@ -160,10 +187,11 @@ export function KitchenStoreProvider({ children }) {
   // Add a new waste record (persists to DB)
   async function addWasteRecord(record) {
     try {
-      const saved = await createWasteLog(record);
+      const toSave = selectedMessId && !record.messId ? { ...record, messId: selectedMessId } : record;
+      const saved = await createWasteLog(toSave);
       setWasteRecords((prev) => [saved, ...prev]);
       setIsLive(true);
-      fetchKitchenAnalytics()
+      fetchKitchenAnalytics(selectedMessId ? { messId: selectedMessId } : {})
         .then(setAnalyticsData)
         .catch(() => {});
       return saved;
@@ -177,6 +205,10 @@ export function KitchenStoreProvider({ children }) {
   return (
     <KitchenStoreContext.Provider
       value={{
+        messes,
+        selectedMessId,
+        setSelectedMessId,
+        selectedMess: messes.find((m) => m.id === selectedMessId) || null,
         productionRecords,
         wasteRecords,
         demandData,

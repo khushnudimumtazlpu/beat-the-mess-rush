@@ -69,6 +69,7 @@ export async function fetchWasteRecords({
   startDate,
   endDate,
   hostelId,
+  messId,
 } = {}) {
   const params = new URLSearchParams();
   if (slotId) params.append("slotId", slotId);
@@ -77,6 +78,7 @@ export async function fetchWasteRecords({
   if (startDate) params.append("startDate", startDate);
   if (endDate) params.append("endDate", endDate);
   if (hostelId) params.append("hostelId", hostelId);
+  if (messId) params.append("messId", messId);
 
   const query = params.toString() ? `?${params.toString()}` : "";
   const res = await fetch(`/api/kitchen/waste${query}`, {
@@ -104,11 +106,12 @@ export async function createWasteLog(wasteEntry) {
 /**
  * Fetch student demand data with safety buffer and hourly flow.
  */
-export async function fetchDemandData({ slotId = "lunch", date, hostelId } = {}) {
+export async function fetchDemandData({ slotId = "lunch", date, hostelId, messId } = {}) {
   const params = new URLSearchParams();
   if (slotId) params.append("slotId", slotId);
   if (date) params.append("date", date);
   if (hostelId) params.append("hostelId", hostelId);
+  if (messId) params.append("messId", messId);
 
   const query = params.toString() ? `?${params.toString()}` : "";
   const res = await fetch(`/api/kitchen/demand${query}`, {
@@ -123,11 +126,12 @@ export async function fetchDemandData({ slotId = "lunch", date, hostelId } = {})
 /**
  * Fetch comprehensive waste analytics and food efficiency reports.
  */
-export async function fetchKitchenAnalytics({ startDate, endDate, hostelId } = {}) {
+export async function fetchKitchenAnalytics({ startDate, endDate, hostelId, messId } = {}) {
   const params = new URLSearchParams();
   if (startDate) params.append("startDate", startDate);
   if (endDate) params.append("endDate", endDate);
   if (hostelId) params.append("hostelId", hostelId);
+  if (messId) params.append("messId", messId);
 
   const query = params.toString() ? `?${params.toString()}` : "";
   const res = await fetch(`/api/kitchen/analytics${query}`, {
