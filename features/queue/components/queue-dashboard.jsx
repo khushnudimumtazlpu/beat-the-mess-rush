@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -55,6 +55,17 @@ export default function QueueDashboard() {
   const [activeMealType, setActiveMealType] = useState("LUNCH");
   const [peopleInput, setPeopleInput] = useState("");
   const [rateInput, setRateInput] = useState("");
+
+  const selectedMessIdRef = useRef(selectedMessId);
+  const activeMealTypeRef = useRef(activeMealType);
+
+  useEffect(() => {
+    selectedMessIdRef.current = selectedMessId;
+  }, [selectedMessId]);
+
+  useEffect(() => {
+    activeMealTypeRef.current = activeMealType;
+  }, [activeMealType]);
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -159,7 +170,7 @@ export default function QueueDashboard() {
   }, []);
 
   // ── 6. Load Initial Dashboard Data ────────────────────────────────────────
-  const loadDashboardData = useCallback(async (keepSelectedMess = false) => {
+  const loadDashboardData = useCallback(async (keepSelectedMess = false, overrideMessId = null) => {
     try {
       const messList = await fetchMesses();
       setError(null);
@@ -174,17 +185,20 @@ export default function QueueDashboard() {
         return;
       }
 
+      // Preserve currently selected mess if requested or if valid in fetched mess list
+      const targetId = overrideMessId || (keepSelectedMess ? selectedMessIdRef.current : null);
       const activeMess =
-        keepSelectedMess && selectedMessId
-          ? messList.find((m) => m.id === selectedMessId) || messList[0]
+        targetId && messList.some((m) => m.id === targetId)
+          ? messList.find((m) => m.id === targetId)
           : messList[0];
 
       setSelectedMessId(activeMess.id);
 
+      const mealType = activeMealTypeRef.current;
       const [counterList, queueList, demandInfo] = await Promise.all([
         fetchCounters(activeMess.id),
         fetchQueues(activeMess.id),
-        fetchDemand(activeMess.id, activeMealType),
+        fetchDemand(activeMess.id, mealType),
       ]);
 
       setCounters(counterList);
@@ -211,7 +225,7 @@ export default function QueueDashboard() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [fetchMesses, fetchCounters, fetchQueues, fetchDemand, fetchQueueHistory, activeMealType, selectedMessId]);
+  }, [fetchMesses, fetchCounters, fetchQueues, fetchDemand, fetchQueueHistory]);
 
   useEffect(() => {
     let active = true;
@@ -229,30 +243,36 @@ export default function QueueDashboard() {
     setFormMessage(null);
     setLoading(true);
 
-    const [counterList, queueList, demandInfo] = await Promise.all([
-      fetchCounters(messId),
-      fetchQueues(messId),
-      fetchDemand(messId, activeMealType),
-    ]);
+    try {
+      const [counterList, queueList, demandInfo] = await Promise.all([
+        fetchCounters(messId),
+        fetchQueues(messId),
+        fetchDemand(messId, activeMealType),
+      ]);
 
-    setCounters(counterList);
-    setQueues(queueList);
-    setDemand(demandInfo);
+      setCounters(counterList);
+      setQueues(queueList);
+      setDemand(demandInfo);
 
-    const activeQueue = queueList.find((q) => q.isOpen) || queueList[0];
-    if (activeQueue) {
-      setSelectedQueueId(activeQueue.id);
-      setPeopleInput(String(activeQueue.peopleWaiting ?? 0));
-      setRateInput(String(activeQueue.servingRatePerMinute ?? 4));
-      const hist = await fetchQueueHistory(activeQueue.id);
-      setHistory(hist);
-    } else {
-      setSelectedQueueId("");
-      setPeopleInput("0");
-      setRateInput("4");
-      setHistory([]);
+      const activeQueue = queueList.find((q) => q.isOpen) || queueList[0];
+      if (activeQueue) {
+        setSelectedQueueId(activeQueue.id);
+        setPeopleInput(String(activeQueue.peopleWaiting ?? 0));
+        setRateInput(String(activeQueue.servingRatePerMinute ?? 4));
+        const hist = await fetchQueueHistory(activeQueue.id);
+        setHistory(hist);
+      } else {
+        setSelectedQueueId("");
+        setPeopleInput("0");
+        setRateInput("4");
+        setHistory([]);
+      }
+    } catch (err) {
+      console.error("Failed to switch mess:", err);
+      setFormMessage({ type: "error", text: "Failed to load data for selected mess." });
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }
 
   // ── 8. Handle Meal Type Change ────────────────────────────────────────────
