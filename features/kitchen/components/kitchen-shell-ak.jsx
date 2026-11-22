@@ -6,7 +6,7 @@ import { Badge } from "../../../components/ui/badge";
 // Sub-navigation and status ribbon for all kitchen pages.
 
 const kitchenNav = [
-  { label: "Home", href: "/" },
+  { label: "Queue Management", href: "/queue" },
   { label: "Kitchen Dashboard", href: "/kitchen" },
   { label: "Production Log", href: "/kitchen/production" },
   { label: "Waste Log", href: "/kitchen/waste" },
@@ -21,7 +21,7 @@ export function KitchenShell({ children }) {
         <div className="kitchen-demo-ribbon" role="note">
           <Badge tone="teal" dot>Kitchen Portal · Database Connected</Badge>
           <span>Production, demand, and waste records are synchronized with MongoDB database storage.</span>
-          <Link href="/">Back to RushLess</Link>
+          <Link href="/queue">Go to Queue Management →</Link>
         </div>
         {children}
       </div>
