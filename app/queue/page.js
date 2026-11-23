@@ -9,7 +9,7 @@ export const metadata = {
 };
 
 export default async function QueuePage() {
-  await authorizeRouteRoles([USER_ROLE.MESS_ADMIN, USER_ROLE.SUPER_ADMIN], "/queue");
+  const user = await authorizeRouteRoles([USER_ROLE.MESS_ADMIN, USER_ROLE.SUPER_ADMIN], "/queue");
 
-  return <QueueDashboard />;
+  return <QueueDashboard isSuperAdmin={user.role === USER_ROLE.SUPER_ADMIN} userRole={user.role} />;
 }

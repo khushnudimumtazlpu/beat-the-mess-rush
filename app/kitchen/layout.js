@@ -12,10 +12,10 @@ export const metadata = {
 // ─── Kitchen Layout (ak) ──────────────────────────────────────────────────────
 // Wraps ALL /kitchen routes with the shared shell and in-memory store provider.
 export default async function KitchenLayout({ children }) {
-  await authorizeRouteRoles([USER_ROLE.MESS_ADMIN, USER_ROLE.SUPER_ADMIN], "/kitchen");
+  const user = await authorizeRouteRoles([USER_ROLE.MESS_ADMIN, USER_ROLE.SUPER_ADMIN], "/kitchen");
 
   return (
-    <KitchenStoreProvider>
+    <KitchenStoreProvider isSuperAdmin={user.role === USER_ROLE.SUPER_ADMIN} userRole={user.role}>
       <KitchenShell>{children}</KitchenShell>
     </KitchenStoreProvider>
   );

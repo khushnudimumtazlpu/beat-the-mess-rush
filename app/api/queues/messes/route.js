@@ -93,6 +93,9 @@ export async function GET(request) {
       }
 
       filter.hostelId = userHostelId;
+      if (user.role === USER_ROLE.MESS_ADMIN && user.messId) {
+        filter._id = toObjectId(user.messId, "messId");
+      }
     }
 
     const requestedStatus = searchParams.get("status");
@@ -112,9 +115,15 @@ export async function GET(request) {
       .sort({ createdAt: -1, _id: 1 })
       .toArray();
 
-    return successResponse(
-      messes.map(formatMess),
-      "Messes retrieved successfully."
+    return Response.json(
+      {
+        success: true,
+        data: messes.map(formatMess),
+        role: user.role,
+        isSuperAdmin: user.role === USER_ROLE.SUPER_ADMIN,
+        message: "Messes retrieved successfully.",
+      },
+      { status: 200 }
     );
   } catch (error) {
     return handleError(error);
