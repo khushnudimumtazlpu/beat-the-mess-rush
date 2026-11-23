@@ -14,7 +14,7 @@ import { useKitchenStore } from "../../features/kitchen/services/kitchen-store-a
 
 export default function KitchenDashboardPage() {
   const [activeSlot, setActiveSlot] = useState("lunch");
-  const { messes, selectedMessId, setSelectedMessId, selectedMess } = useKitchenStore();
+  const { messes, selectedMessId, setSelectedMessId, selectedMess, isSuperAdmin } = useKitchenStore();
 
   return (
     <div className="kitchen-page">
@@ -27,7 +27,7 @@ export default function KitchenDashboardPage() {
             </span>
             <h1>Dashboard</h1>
             <p>Review today&apos;s demand signals and manage production batches for each meal slot.</p>
-            {messes.length > 1 ? (
+            {isSuperAdmin && messes.length > 1 ? (
               <div style={{ marginTop: "0.5rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
                 <span className="kitchen-stat__label" style={{ fontSize: "0.8rem", fontWeight: "bold" }}>Mess:</span>
                 <select

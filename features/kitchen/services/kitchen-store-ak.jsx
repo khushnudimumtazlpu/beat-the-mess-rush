@@ -24,7 +24,9 @@ import {
 const KitchenStoreContext = createContext(null);
 
 // ── Provider — wrap the kitchen layout with this ──────────────────────────────
-export function KitchenStoreProvider({ children }) {
+export function KitchenStoreProvider({ children, isSuperAdmin: propIsSuperAdmin = false, userRole: propUserRole = null }) {
+  const [role, setRole] = useState(propUserRole || "");
+  const [isSuperAdmin, setIsSuperAdmin] = useState(Boolean(propIsSuperAdmin || propUserRole === "SUPER_ADMIN"));
   const [messes, setMesses] = useState([]);
   const [selectedMessId, setSelectedMessId] = useState("");
   const [productionRecords, setProductionRecords] = useState([]);
@@ -44,6 +46,10 @@ export function KitchenStoreProvider({ children }) {
         if (mounted && json.success && Array.isArray(json.data) && json.data.length > 0) {
           setMesses(json.data);
           setSelectedMessId(json.data[0].id);
+          if (json.role) {
+            setRole(json.role);
+            if (json.role === "SUPER_ADMIN") setIsSuperAdmin(true);
+          }
         }
       } catch {
         // Silently ignore if messes route unavailable
@@ -209,6 +215,8 @@ export function KitchenStoreProvider({ children }) {
         selectedMessId,
         setSelectedMessId,
         selectedMess: messes.find((m) => m.id === selectedMessId) || null,
+        isSuperAdmin: Boolean(isSuperAdmin || propIsSuperAdmin || role === "SUPER_ADMIN"),
+        userRole: role,
         productionRecords,
         wasteRecords,
         demandData,

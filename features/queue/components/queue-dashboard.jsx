@@ -43,9 +43,11 @@ const statusDetails = {
 
 const MEAL_TYPES = ["BREAKFAST", "LUNCH", "SNACKS", "DINNER"];
 
-export default function QueueDashboard() {
+export default function QueueDashboard({ isSuperAdmin = false, userRole = null }) {
   const [messes, setMesses] = useState([]);
   const [selectedMessId, setSelectedMessId] = useState("");
+  const [role, setRole] = useState(userRole || "");
+  const effectiveIsSuperAdmin = isSuperAdmin || role === "SUPER_ADMIN";
   const [counters, setCounters] = useState([]);
   const [queues, setQueues] = useState([]);
   const [selectedQueueId, setSelectedQueueId] = useState("");
@@ -88,6 +90,9 @@ export default function QueueDashboard() {
       const payload = await res.json();
       if (!res.ok || !payload?.success) {
         throw new Error(payload?.error?.message || "Failed to load mess records.");
+      }
+      if (payload.role) {
+        setRole(payload.role);
       }
       return payload.data ?? [];
     } catch (err) {
@@ -713,8 +718,8 @@ export default function QueueDashboard() {
               </p>
             </div>
 
-            {/* Mess Selector */}
-            {messes.length > 1 ? (
+            {/* Mess Selector: ONLY Super Admin can switch messes; Mess Admin is locked to their assigned mess */}
+            {effectiveIsSuperAdmin && messes.length > 1 ? (
               <div className="flex items-center gap-2">
                 <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Mess:</span>
                 <select
