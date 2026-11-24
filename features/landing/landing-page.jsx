@@ -18,6 +18,7 @@ import {
   Utensils,
   UsersRound,
 } from "lucide-react";
+import { USER_ROLE } from "../../lib/auth-contracts.js";
 import { AppShell } from "../../components/layout/app-shell";
 import { PageContainer, PageSection, SectionHeading } from "../../components/layout/page-primitives";
 import { Badge } from "../../components/ui/badge";
@@ -26,16 +27,51 @@ import { PhotoFrame } from "./photo-frame";
 import { QueueIllustration } from "./queue-illustration";
 import { Reveal } from "./landing-motion";
 
-const navigation = [
-  { label: "Home", href: "/#top", isHome: true },
-  { label: "Kitchen Portal", href: "/kitchen" },
-  { label: "Features", href: "#features" },
-  { label: "How it works", href: "#how-it-works" },
-  { label: "Impact", href: "#impact" },
-  { label: "Queue Management", href: "/queue" },
-  { label: "Login", href: "/login" },
-  { label: "Create Account", href: "/register" },
-];
+export function getLandingNavigation(user) {
+  const isStudent = user?.role === USER_ROLE.STUDENT;
+  const isAuthenticated = Boolean(user);
+
+  const items = [{ label: "Home", href: "/#top", isHome: true }];
+
+  if (!isStudent) {
+    items.push({ label: "Kitchen Portal", href: "/kitchen" });
+  }
+
+  items.push(
+    { label: "Features", href: "#features" },
+    { label: "How it works", href: "#how-it-works" },
+    { label: "Impact", href: "#impact" },
+  );
+
+  if (!isStudent) {
+    items.push({ label: "Queue Management", href: "/queue" });
+  }
+
+  if (!isAuthenticated) {
+    items.push(
+      { label: "Login", href: "/login" },
+      { label: "Create Account", href: "/register" },
+    );
+  }
+
+  return items;
+}
+
+export function getLandingAction(user) {
+  if (!user) {
+    return { label: "Student dashboard", href: "/student", variant: "dark" };
+  }
+  if (user.role === USER_ROLE.STUDENT) {
+    return { label: "Student dashboard", href: "/student", variant: "dark" };
+  }
+  if (user.role === USER_ROLE.MESS_ADMIN) {
+    return { label: "Kitchen portal", href: "/kitchen", variant: "dark" };
+  }
+  if (user.role === USER_ROLE.SUPER_ADMIN) {
+    return { label: "Admin dashboard", href: "/admin", variant: "dark" };
+  }
+  return { label: "Student dashboard", href: "/student", variant: "dark" };
+}
 
 const steps = [
   {
@@ -88,7 +124,7 @@ const dataReadiness = [
   { label: "Food-waste records", status: "Kitchen module active (demo)", icon: Leaf },
 ];
 
-function HeroSection() {
+function HeroSection({ isStudent = false }) {
   return (
     <section className="rush-hero" aria-labelledby="hero-title">
       <PageContainer className="rush-hero__grid">
@@ -105,9 +141,11 @@ function HeroSection() {
             <Button href="/student" variant="primary" size="large">
               Open Student Dashboard <ArrowRight size={17} aria-hidden="true" />
             </Button>
-            <Button href="/kitchen" variant="dark" size="large">
-              Kitchen Portal <ArrowRight size={17} aria-hidden="true" />
-            </Button>
+            {!isStudent ? (
+              <Button href="/kitchen" variant="dark" size="large">
+                Kitchen Portal <ArrowRight size={17} aria-hidden="true" />
+              </Button>
+            ) : null}
             <Button href="/student/meals" variant="hero-outline" size="large">
               Plan a meal <ArrowDown size={16} aria-hidden="true" />
             </Button>
@@ -403,7 +441,7 @@ function ClosingSection() {
   );
 }
 
-function SiteFooter() {
+function SiteFooter({ isStudent = false }) {
   return (
     <footer className="site-footer">
       <PageContainer>
@@ -415,7 +453,9 @@ function SiteFooter() {
           </div>
           <div className="site-footer__links-group"><strong>EXPLORE</strong><Link href="#story">The idea</Link><Link href="#features">What it connects</Link><Link href="#how-it-works">How it works</Link><Link href="#impact">Data &amp; impact</Link></div>
           <div className="site-footer__links-group"><strong>STUDENT DEMO</strong><Link href="/student">Student Dashboard</Link><Link href="/student/meals">Plan a Meal</Link><Link href="/student/history">Meal History</Link><Link href="#queue-feature">Queue visibility</Link><Link href="#kitchen-feature">Kitchen intelligence</Link></div>
-          <div className="site-footer__links-group"><strong>KITCHEN PORTAL</strong><Link href="/kitchen">Kitchen Dashboard</Link><Link href="/kitchen/production">Production Log</Link><Link href="/kitchen/waste">Waste Log</Link><Link href="/kitchen/analytics">Waste Analytics</Link></div>
+          {!isStudent ? (
+            <div className="site-footer__links-group"><strong>KITCHEN PORTAL</strong><Link href="/kitchen">Kitchen Dashboard</Link><Link href="/kitchen/production">Production Log</Link><Link href="/kitchen/waste">Waste Log</Link><Link href="/kitchen/analytics">Waste Analytics</Link></div>
+          ) : null}
           <div className="site-footer__note"><span className="site-footer__note-icon"><ShieldCheck size={17} /></span><p>Information will be labelled by source: live, staff-reported, estimated, or demo.</p></div>
         </div>
         <div className="site-footer__bottom"><span>© 2026 RushLess · Campus dining project</span><span>Built around clearer handoffs, not made-up numbers.</span><Link href="#top">Back to top ↑</Link></div>
@@ -424,15 +464,21 @@ function SiteFooter() {
   );
 }
 
-export default function LandingPage() {
+export default function LandingPage({ user = null }) {
+  const isStudent = user?.role === USER_ROLE.STUDENT;
+  const isAuthenticated = Boolean(user);
+  const navItems = getLandingNavigation(user);
+  const action = getLandingAction(user);
+
   return (
     <>
       <AppShell
-        navItems={navigation}
-        action={{ label: "Student dashboard", href: "/student", variant: "dark" }}
+        navItems={navItems}
+        action={action}
+        showLogout={isAuthenticated}
       >
         <div id="top" className="landing-page">
-          <HeroSection />
+          <HeroSection isStudent={isStudent} />
           <StorySection />
           <FeaturesSection />
           <ProcessSection />
@@ -440,7 +486,7 @@ export default function LandingPage() {
           <ClosingSection />
         </div>
       </AppShell>
-      <SiteFooter />
+      <SiteFooter isStudent={isStudent} />
     </>
   );
 }
