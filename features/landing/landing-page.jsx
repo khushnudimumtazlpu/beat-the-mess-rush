@@ -124,7 +124,7 @@ const dataReadiness = [
   { label: "Food-waste records", status: "Kitchen module active (demo)", icon: Leaf },
 ];
 
-function HeroSection({ isStudent = false }) {
+function HeroSection({ isStudent = false, isKitchenAdmin = false, isSuperAdmin = false }) {
   return (
     <section className="rush-hero" aria-labelledby="hero-title">
       <PageContainer className="rush-hero__grid">
@@ -138,17 +138,39 @@ function HeroSection({ isStudent = false }) {
             RushLess brings meal planning, queue information, and kitchen demand into one thoughtful campus dining experience.
           </p>
           <div className="rush-hero__actions">
-            <Button href="/student" variant="primary" size="large">
-              Open Student Dashboard <ArrowRight size={17} aria-hidden="true" />
-            </Button>
-            {!isStudent ? (
-              <Button href="/kitchen" variant="dark" size="large">
-                Kitchen Portal <ArrowRight size={17} aria-hidden="true" />
-              </Button>
-            ) : null}
-            <Button href="/student/meals" variant="hero-outline" size="large">
-              Plan a meal <ArrowDown size={16} aria-hidden="true" />
-            </Button>
+            {isKitchenAdmin ? (
+              <>
+                <Button href="/kitchen" variant="primary" size="large">
+                  Open Kitchen Portal <ArrowRight size={17} aria-hidden="true" />
+                </Button>
+                <Button href="/queue" variant="dark" size="large">
+                  Queue Management <ArrowRight size={17} aria-hidden="true" />
+                </Button>
+              </>
+            ) : isSuperAdmin ? (
+              <>
+                <Button href="/admin" variant="primary" size="large">
+                  Open Admin Dashboard <ArrowRight size={17} aria-hidden="true" />
+                </Button>
+                <Button href="/kitchen" variant="dark" size="large">
+                  Kitchen Portal <ArrowRight size={17} aria-hidden="true" />
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button href="/student" variant="primary" size="large">
+                  Open Student Dashboard <ArrowRight size={17} aria-hidden="true" />
+                </Button>
+                {!isStudent ? (
+                  <Button href="/kitchen" variant="dark" size="large">
+                    Kitchen Portal <ArrowRight size={17} aria-hidden="true" />
+                  </Button>
+                ) : null}
+                <Button href="/student/meals" variant="hero-outline" size="large">
+                  Plan a meal <ArrowDown size={16} aria-hidden="true" />
+                </Button>
+              </>
+            )}
           </div>
           <div className="rush-hero__promise">
             <ShieldCheck size={16} aria-hidden="true" />
@@ -252,7 +274,7 @@ function StorySection() {
   );
 }
 
-function StudentFeature() {
+function StudentFeature({ isStaff = false }) {
   return (
     <section id="student-experience" className="feature-block feature-block--student" aria-labelledby="student-feature-title">
       <PageContainer className="feature-block__grid">
@@ -282,7 +304,9 @@ function StudentFeature() {
             <li><span><Check size={13} /></span> Queue details with source and freshness</li>
             <li><span><Check size={13} /></span> Announcements and meal history</li>
           </ul>
-          <Button href="/student" variant="dark">Open Student Dashboard <ArrowRight size={16} aria-hidden="true" /></Button>
+          {!isStaff ? (
+            <Button href="/student" variant="dark">Open Student Dashboard <ArrowRight size={16} aria-hidden="true" /></Button>
+          ) : null}
           <Badge tone="neutral">Student module · planned</Badge>
         </Reveal>
       </PageContainer>
@@ -336,7 +360,7 @@ function KitchenFeature() {
   );
 }
 
-function FeaturesSection() {
+function FeaturesSection({ isStaff = false }) {
   return (
     <section id="features" className="features-section" aria-labelledby="features-title">
       <PageContainer>
@@ -349,7 +373,7 @@ function FeaturesSection() {
           <div className="features-intro__aside"><span>STUDENT</span><MoveRight size={16} /><span>QUEUE</span><MoveRight size={16} /><span>KITCHEN</span></div>
         </Reveal>
       </PageContainer>
-      <StudentFeature />
+      <StudentFeature isStaff={isStaff} />
       <QueueFeature />
       <KitchenFeature />
     </section>
@@ -441,7 +465,7 @@ function ClosingSection() {
   );
 }
 
-function SiteFooter({ isStudent = false }) {
+function SiteFooter({ isStudent = false, isStaff = false }) {
   return (
     <footer className="site-footer">
       <PageContainer>
@@ -452,7 +476,9 @@ function SiteFooter({ isStudent = false }) {
             <span className="site-footer__project">P01 · Beat the Mess Rush</span>
           </div>
           <div className="site-footer__links-group"><strong>EXPLORE</strong><Link href="#story">The idea</Link><Link href="#features">What it connects</Link><Link href="#how-it-works">How it works</Link><Link href="#impact">Data &amp; impact</Link></div>
-          <div className="site-footer__links-group"><strong>STUDENT DEMO</strong><Link href="/student">Student Dashboard</Link><Link href="/student/meals">Plan a Meal</Link><Link href="/student/history">Meal History</Link><Link href="#queue-feature">Queue visibility</Link><Link href="#kitchen-feature">Kitchen intelligence</Link></div>
+          {!isStaff ? (
+            <div className="site-footer__links-group"><strong>STUDENT DEMO</strong><Link href="/student">Student Dashboard</Link><Link href="/student/meals">Plan a Meal</Link><Link href="/student/history">Meal History</Link><Link href="#queue-feature">Queue visibility</Link><Link href="#kitchen-feature">Kitchen intelligence</Link></div>
+          ) : null}
           {!isStudent ? (
             <div className="site-footer__links-group"><strong>KITCHEN PORTAL</strong><Link href="/kitchen">Kitchen Dashboard</Link><Link href="/kitchen/production">Production Log</Link><Link href="/kitchen/waste">Waste Log</Link><Link href="/kitchen/analytics">Waste Analytics</Link></div>
           ) : null}
@@ -466,6 +492,9 @@ function SiteFooter({ isStudent = false }) {
 
 export default function LandingPage({ user = null }) {
   const isStudent = user?.role === USER_ROLE.STUDENT;
+  const isKitchenAdmin = user?.role === USER_ROLE.MESS_ADMIN;
+  const isSuperAdmin = user?.role === USER_ROLE.SUPER_ADMIN;
+  const isStaff = isKitchenAdmin || isSuperAdmin;
   const isAuthenticated = Boolean(user);
   const navItems = getLandingNavigation(user);
   const action = getLandingAction(user);
@@ -478,15 +507,19 @@ export default function LandingPage({ user = null }) {
         showLogout={isAuthenticated}
       >
         <div id="top" className="landing-page">
-          <HeroSection isStudent={isStudent} />
+          <HeroSection
+            isStudent={isStudent}
+            isKitchenAdmin={isKitchenAdmin}
+            isSuperAdmin={isSuperAdmin}
+          />
           <StorySection />
-          <FeaturesSection />
+          <FeaturesSection isStaff={isStaff} />
           <ProcessSection />
           <ImpactSection />
           <ClosingSection />
         </div>
       </AppShell>
-      <SiteFooter isStudent={isStudent} />
+      <SiteFooter isStudent={isStudent} isStaff={isStaff} />
     </>
   );
 }
