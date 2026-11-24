@@ -69,6 +69,19 @@ describe("LandingPage navigation and role filtering", () => {
     expect(html).toContain("Plan a meal");
   });
 
+  it("renders LandingPage without student actions when logged in as a kitchen admin", () => {
+    const kitchenAdmin = { id: "admin-1", role: USER_ROLE.MESS_ADMIN, name: "Chef Ramesh" };
+    const html = renderToStaticMarkup(<LandingPage user={kitchenAdmin} />);
+
+    expect(html).not.toContain("Open Student Dashboard");
+    expect(html).not.toContain('href="/student"');
+    expect(html).not.toContain('href="/student/meals"');
+    expect(html).toContain("Open Kitchen Portal");
+    expect(html).toContain("Queue Management");
+    expect(html).toContain('href="/kitchen"');
+    expect(html).toContain('href="/queue"');
+  });
+
   it("renders LandingPage with kitchen portal options for guest users", () => {
     const html = renderToStaticMarkup(<LandingPage user={null} />);
 
